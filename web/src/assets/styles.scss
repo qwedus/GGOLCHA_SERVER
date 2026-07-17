@@ -1,0 +1,82 @@
+/* You can add global styles to this file, and also import other style files */
+@use 'primeicons/primeicons.css';
+@use '@/assets/tailwind.css';
+@use '@/assets/layout/layout.scss';
+
+@reference "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+
+@font-face {
+  font-family: 'Millennium';
+  src: url('/millennium bmp08.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+.card {
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.layout-main-container {
+  padding: 5.5rem 1.5rem 0 1.5rem !important;
+}
+
+.layout-main {
+  padding-bottom: 1.5rem;
+}
+
+.layout-sidebar {
+  top: 5.5rem;
+  left: 1.5rem;
+  height: calc(100vh - 7rem);
+}
+
+.cardview {
+  @apply rounded-xl border bg-gray-50/60 dark:border-zinc-900 dark:bg-zinc-700/25 px-4 py-3;
+}
+
+.u-legend {
+  display: grid!important;
+  @apply grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6;
+}
+
+.u-legend table,
+.u-legend tbody {
+  display: contents;
+}
+
+.u-legend tr.u-series {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.u-legend .u-series:first-child .u-marker {
+  display: none;
+}
+
+.u-legend tr.u-series:first-child {
+  grid-column: 1 / -1;
+  justify-content: center;
+}
+
+.u-series td,
+.u-series th {
+  padding: 4px 2px;
+}
+
+.u-select {
+  background: rgba(0, 0, 0, 0.2)!important;
+}
+
+.u-marker {
+  border-width: 2px!important;
+  width: 0.5rem!important;
+  height: 0.5rem!important;
+  border-radius: 50%;
+}

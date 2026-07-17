@@ -1,0 +1,252 @@
+#include "main.h"
+
+#include "cJSON.h"
+#include "esp_http_server.h"
+#include "esp_netif.h"
+#include "esp_wifi.h"
+#include "lwip/udp.h"
+
+extern const uint8_t index_html_start[] asm("_binary_index_html_start");
+extern const uint8_t index_html_end[] asm("_binary_index_html_end");
+
+static const uint8_t dns_answer[] = {
+  0xC0, 0x0C, 0x00, 0x01, 0x00, 0x01,
+  0x00, 0x00, 0x00, 0x3C, 0x00, 0x04,
+  192, 168, 4, 1,
+};
+
+static void dns_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port) {
+  if (p == NULL || p->len < 12) {
+    if (p) pbuf_free(p);
+    return;
+  }
+
+  uint8_t *buf = (uint8_t *)p->payload;
+
+  // set response flags: QR=1, AA=1, RA=1
+  buf[2] = 0x81;
+  buf[3] = 0x80;
+  buf[6] = 0x00; // ANCOUNT = 1
+  buf[7] = 0x01;
+
+  // skip question section
+  int qend = 12;
+  while (qend < (int)p->len && buf[qend] != 0) qend += buf[qend] + 1;
+  qend += 5; // null + QTYPE(2) + QCLASS(2)
+
+  if (qend > (int)p->len) {
+    pbuf_free(p);
+    return;
+  }
+
+  struct pbuf *resp = pbuf_alloc(PBUF_TRANSPORT, qend + sizeof(dns_answer), PBUF_RAM);
+  if (resp) {
+    memcpy(resp->payload, buf, qend);
+    memcpy((uint8_t *)resp->payload + qend, dns_answer, sizeof(dns_answer));
+    udp_sendto(pcb, resp, addr, port);
+    pbuf_free(resp);
+  }
+
+  pbuf_free(p);
+}
+
+static esp_err_t redirect_root(httpd_req_t *req) {
+  httpd_resp_set_status(req, "302 Found");
+  httpd_resp_set_hdr(req, "Location", "http://192.168.4.1/");
+  httpd_resp_sendstr(req, "");
+  return ESP_OK;
+}
+
+static esp_err_t html(httpd_req_t *req) {
+  httpd_resp_send(req, (const char *)index_html_start, index_html_end - index_html_start);
+  return ESP_OK;
+}
+
+static esp_err_t reboot(httpd_req_t *req) {
+  httpd_resp_sendstr(req, "rebooting...");
+  esp_restart();
+  return ESP_OK;
+}
+
+// should return the value stored in NVS
+static esp_err_t getconf(httpd_req_t *req) {
+  char ssid[32];
+  char passwd[32];
+  char server[64];
+  char name[32];
+  char key[32];
+
+  size_t len = sizeof(ssid);
+  nvs_get_str(nvs, "ssid", ssid, &len);
+
+  len = sizeof(passwd);
+  nvs_get_str(nvs, "passwd", passwd, &len);
+
+  len = sizeof(server);
+  nvs_get_str(nvs, "server", server, &len);
+
+  len = sizeof(name);
+  nvs_get_str(nvs, "name", name, &len);
+
+  len = sizeof(key);
+  nvs_get_str(nvs, "key", key, &len);
+
+  char res[288];
+  snprintf(res, sizeof(res),
+    "{\"id\":\"%s\", \"ssid\":\"%s\", \"passwd\":\"%s\", \"server\":\"%s\", \"name\":\"%s\", \"key\":\"%s\"}",
+    storage.wifi.macaddr, ssid, passwd, server, name, key);
+
+  httpd_resp_set_type(req, "application/json");
+  httpd_resp_send(req, res, strlen(res));
+  return ESP_OK;
+}
+
+static esp_err_t setconf(httpd_req_t *req) {
+  char buf[256];
+  size_t len = httpd_req_recv(req, buf, sizeof(buf) - 1);
+
+  if (len <= 0) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "REQ_RECV_FAIL");
+    return ESP_FAIL;
+  }
+
+  buf[len]    = '\0';
+  cJSON *json = cJSON_Parse(buf);
+
+  if (!json) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "INVALID_JSON");
+    return ESP_FAIL;
+  }
+
+  esp_err_t ret = ESP_OK;
+  cJSON *item   = cJSON_GetObjectItem(json, "ssid");
+
+  if (cJSON_IsString(item) && item->valuestring) {
+    nvs_set_str(nvs, "ssid", item->valuestring);
+  } else {
+    ret = ESP_ERR_INVALID_ARG;
+  }
+
+  item = cJSON_GetObjectItem(json, "passwd");
+
+  if (cJSON_IsString(item) && item->valuestring) {
+    nvs_set_str(nvs, "passwd", item->valuestring);
+  } else {
+    ret = ESP_ERR_INVALID_ARG;
+  }
+
+  item = cJSON_GetObjectItem(json, "server");
+
+  if (cJSON_IsString(item) && item->valuestring) {
+    nvs_set_str(nvs, "server", item->valuestring);
+  } else {
+    ret = ESP_ERR_INVALID_ARG;
+  }
+
+  item = cJSON_GetObjectItem(json, "name");
+
+  if (cJSON_IsString(item) && item->valuestring) {
+    nvs_set_str(nvs, "name", item->valuestring);
+  } else {
+    ret = ESP_ERR_INVALID_ARG;
+  }
+
+  item = cJSON_GetObjectItem(json, "key");
+
+  if (cJSON_IsString(item) && item->valuestring) {
+    nvs_set_str(nvs, "key", item->valuestring);
+  } else {
+    ret = ESP_ERR_INVALID_ARG;
+  }
+
+  if (ret != ESP_OK) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "BAD_FIELD");
+    cJSON_Delete(json);
+    return ret;
+  }
+
+  // only update NVS and do not update memory; new values will be used on next boot
+  if (nvs_commit(nvs) != ESP_OK) {
+    httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "NVS_COMMIT_FAIL");
+    ERROR_SYSLOG(&logbuf.run, NVS, "commit failure: network", "WEB_NVS_FAIL");
+    return ESP_FAIL;
+  }
+
+  cJSON_Delete(json);
+  httpd_resp_set_type(req, "application/json");
+  httpd_resp_sendstr(req, "{\"status\":\"OK\"}");
+  return ESP_OK;
+}
+
+void webserver(void) {
+  esp_netif_create_default_wifi_ap();
+
+  wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+
+  if (esp_wifi_init(&cfg) != ESP_OK) {
+    ERROR_SYSLOG(&init, WIFI, "init failure", "WIFI_INIT_FAIL");
+    return;
+  }
+
+  wifi_config_t wifi = {
+    .ap = {
+      .password = "monolith",
+      .max_connection = 4,
+      .authmode = WIFI_AUTH_WPA2_PSK,
+    },
+  };
+
+  snprintf((char *)wifi.ap.ssid, sizeof(wifi.ap.ssid), "Monolith v2 %02X%02X%02X", storage.wifi.mac[3],
+    storage.wifi.mac[4], storage.wifi.mac[5]);
+
+  if (esp_wifi_set_mode(WIFI_MODE_AP) != ESP_OK || esp_wifi_set_config(WIFI_IF_AP, &wifi) != ESP_OK) {
+    ERROR_SYSLOG(&init, WIFI, "AP config failure", "AP_CFG_FAIL");
+    return;
+  }
+
+  if (esp_wifi_start() != ESP_OK) {
+    ERROR_SYSLOG(&init, WIFI, "AP start failure", "AP_START_FAIL");
+    return;
+  }
+
+  struct udp_pcb *dns = udp_new();
+  if (dns) {
+    udp_bind(dns, IP_ADDR_ANY, 53);
+    udp_recv(dns, dns_recv, NULL);
+  }
+
+  httpd_handle_t server   = NULL;
+  httpd_config_t config   = HTTPD_DEFAULT_CONFIG();
+  config.server_port      = 80;
+  config.max_uri_handlers = 16;
+  config.max_req_hdr_len  = 1024;
+  config.lru_purge_enable = true;
+
+  httpd_uri_t root      = { .uri = "/", .method = HTTP_GET, .handler = html, .user_ctx = NULL };
+  httpd_uri_t restart   = { .uri = "/reboot", .method = HTTP_GET, .handler = reboot, .user_ctx = NULL };
+  httpd_uri_t getconfig = { .uri = "/config", .method = HTTP_GET, .handler = getconf, .user_ctx = NULL };
+  httpd_uri_t setconfig = { .uri = "/config", .method = HTTP_POST, .handler = setconf, .user_ctx = NULL };
+
+  if (httpd_start(&server, &config) != ESP_OK) {
+    ERROR_SYSLOG(&init, WIFI, "HTTP server init failure", "WEBSERVER_FAIL");
+    return;
+  }
+
+  httpd_register_uri_handler(server, &root);
+  httpd_register_uri_handler(server, &restart);
+  httpd_register_uri_handler(server, &getconfig);
+  httpd_register_uri_handler(server, &setconfig);
+
+  // captive portal redirect routes
+  const char *portal_uris[] = {
+    "/generate_204", "/gen_204",
+    "/ncsi.txt", "/connecttest.txt",
+    "/hotspot-detect.html", "/library/test/success.html",
+    "/success.txt", "/favicon.ico", "/redirect",
+  };
+
+  for (int i = 0; i < sizeof(portal_uris) / sizeof(portal_uris[0]); i++) {
+    httpd_uri_t portal = { .uri = portal_uris[i], .method = HTTP_GET, .handler = redirect_root, .user_ctx = NULL };
+    httpd_register_uri_handler(server, &portal);
+  }
+}

@@ -1,0 +1,83 @@
+name: ESP-IDF Firmware Build
+
+on:
+  push:
+    paths:
+      - 'device/firmware/**'
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build-monolith:
+    name: Build firmware
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Get version info
+        id: ver
+        run: |
+          TAG=$(git describe --tags --always)
+          TAG=$(echo "$TAG" | sed 's/-g[0-9a-f]\+//')
+          HASH=$(git rev-parse --short=8 HEAD)
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+          echo "HASH=$HASH" >> $GITHUB_OUTPUT
+
+      - uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5
+          target: esp32s3
+          path: 'device/firmware'
+          command: idf.py build -DFW_GIT_TAG="${{ steps.ver.outputs.TAG }}" -DFW_GIT_HASH="${{ steps.ver.outputs.HASH }}"
+
+      - run: |
+          mkdir -p release/bootloader
+          cp device/firmware/build/flash_args release
+          cp device/firmware/build/monolith.* release
+          cp device/firmware/build/bootloader/bootloader.* release/bootloader
+          cp -r device/firmware/build/partition_table release
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: firmware-monolith
+          path: release
+
+  build-monolith-mini:
+    name: Build mini firmware
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Get version info
+        id: ver
+        run: |
+          TAG=$(git describe --tags --always)
+          TAG=$(echo "$TAG" | sed 's/-g[0-9a-f]\+//')
+          HASH=$(git rev-parse --short=8 HEAD)
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+          echo "HASH=$HASH" >> $GITHUB_OUTPUT
+
+      - uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5
+          target: esp32s3
+          path: 'device/firmware'
+          command: idf.py build -DCMAKE_C_FLAGS="-DCONFIG_MONOLITH_MINI" -DFW_GIT_TAG="${{ steps.ver.outputs.TAG }}" -DFW_GIT_HASH="${{ steps.ver.outputs.HASH }}"
+
+      - run: |
+          mkdir -p release/bootloader
+          cp device/firmware/build/flash_args release
+          cp device/firmware/build/monolith.* release
+          cp device/firmware/build/bootloader/bootloader.* release/bootloader
+          cp -r device/firmware/build/partition_table release
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: firmware-monolith-mini
+          path: release
