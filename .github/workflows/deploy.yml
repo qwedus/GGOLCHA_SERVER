@@ -1,0 +1,23 @@
+name: Deploy to Seoul Server
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'   # server 폴더 변경될 때만 배포 (불필요한 트리거 방지)
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and deploy
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/monolith/GGOLCHA_SERVER
+            git pull origin main
+            cd server
+            docker compose up -d --build
