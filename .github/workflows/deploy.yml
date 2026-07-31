@@ -17,7 +17,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/monolith/GGOLCHA_SERVER
+            cd ~/GGOLCHA_SERVER
             git pull origin main
             cd server
             docker compose up -d --build
