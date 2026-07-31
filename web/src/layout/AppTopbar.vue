@@ -21,7 +21,7 @@ const toggle_connections = (event) => {
             </button>
             <router-link to="/" class="layout-topbar-logo">
                 <img src="/icon_small.png" alt="logo" class="layout-topbar-logo-image" />
-                <span>monolith</span>
+                <span>GGOL CHA</span>
             </router-link>
         </div>
 
