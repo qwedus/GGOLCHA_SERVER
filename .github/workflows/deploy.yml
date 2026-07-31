@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'server/**'   # server 폴더 변경될 때만 배포 (불필요한 트리거 방지)
-
+      - 'web/**'
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -19,5 +19,5 @@ jobs:
           script: |
             cd ~/GGOLCHA_SERVER
             git pull origin main
-            cd server
-            docker compose up -d --build
+            cd web && npm install && npm run build
+            cd ../server && docker compose up -d --build
