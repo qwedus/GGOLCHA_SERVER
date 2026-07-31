@@ -4,6 +4,8 @@
 
 DIY wireless data logging platform for Student Formula and Baja.
 
+# CI/CD 테스트용 주석
+
 ## Features
 
 * 📡 Full wireless support
