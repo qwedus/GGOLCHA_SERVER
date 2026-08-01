@@ -146,7 +146,7 @@ services:
         max-file: "3"
 
   mqtt-logger:
-    build: ./mqtt-logger
+    build: ./mqtt_logger
     depends_on:
       - mosquitto
       - influxdb
