@@ -1,10 +1,9 @@
-# monolith
+# GGOOLCHA Telemetry System
 
 ![](.github/assets/wide.jpg)
 
 DIY wireless data logging platform for Student Formula and Baja.
 
-# CI/CD 테스트용 주석
 
 ## Features
 
