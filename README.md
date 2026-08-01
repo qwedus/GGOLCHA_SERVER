@@ -2,7 +2,7 @@
 
 ![](docs/images/GCTS_banner.png)
 
-DIY wireless data logging platform for Student Formula and Baja.
+DIY wireless data logging platform for Team GGOOLCHA
 
 
 ## Features
