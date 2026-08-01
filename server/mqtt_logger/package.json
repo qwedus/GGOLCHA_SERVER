@@ -1,0 +1,14 @@
+{
+  "name": "ggolcha-mqtt-logger",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MQTT -> InfluxDB bridge for GGOLCHA telemetry. Subscribes to all device topics and persists parsed logs, independent of any browser being open.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "mqtt": "^5.10.1",
+    "@influxdata/influxdb-client": "^1.35.0"
+  }
+}
