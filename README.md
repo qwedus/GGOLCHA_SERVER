@@ -1,6 +1,6 @@
 # GGOOLCHA Telemetry System
 
-![](docs/images/GC_banner.png)
+![](docs/images/GCTS_banner.png)
 
 DIY wireless data logging platform for Student Formula and Baja.
 
