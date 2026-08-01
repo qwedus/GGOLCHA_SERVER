@@ -28,7 +28,7 @@ export function init_mqtt() {
     first_auth_fail = true;
 
     if (!localStorage.getItem('server/addr')) {
-        localStorage.setItem('server/addr', 'v2.monolith.luftaquila.io');
+        localStorage.setItem('server/addr', 'ggolcha.duckdns.org');
     }
 
     mqtt_client = mqtt.connect({
