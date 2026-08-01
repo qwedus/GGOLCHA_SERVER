@@ -145,7 +145,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  mqtt-logger:
+  mqtt_logger:
     build: ./mqtt_logger
     depends_on:
       - mosquitto
