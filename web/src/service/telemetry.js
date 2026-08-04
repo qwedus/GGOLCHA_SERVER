@@ -17,7 +17,7 @@ export const hotlineMode = ref(HOTLINE_MODE.SPEED);
 let current_pos = null;
 let rebuildTimer = null;
 
-export const dirty = { analog: false, gyro: false, can: false };
+export const dirty = { analog: false, gyro: false, can: false, vehicle: false };
 
 const MAX_TELEMETRY_POINTS = 36000;
 const HOTLINE_REBUILD_INTERVAL = 1000;
@@ -134,6 +134,22 @@ export function update_telemetry(data) {
             map.value.panTo(latlng);
         }
     }
+}
+
+export function update_vehicle(log) {
+    // FIELD_SCHEMA에서 이미 물리값으로 변환 끝난 상태라 convert.* 안 거치고 바로 push
+    telemetry.vehicle[0].push(times.boot.raw + log.timestamp / 1000);
+    telemetry.vehicle[1].push(log.vehicle.rpm_L);
+    telemetry.vehicle[2].push(log.vehicle.rpm_R);
+    telemetry.vehicle[3].push(log.vehicle.throttle_L);
+    telemetry.vehicle[4].push(log.vehicle.throttle_R);
+    telemetry.vehicle[5].push(log.vehicle.voltage);
+    telemetry.vehicle[6].push(log.vehicle.current);
+    telemetry.vehicle[7].push(log.vehicle.soc_pct);
+    telemetry.vehicle[8].push(log.vehicle.encoder_angle);
+
+    trim(telemetry.vehicle);
+    dirty.vehicle = true;
 }
 
 export function update_can(log) {
