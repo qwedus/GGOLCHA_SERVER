@@ -30,10 +30,27 @@ export const views = reactive({
         name: 'Gyro',
         display: { telemetry: true }
     },
-    can: {
+   can: {
         name: 'CAN',
-        display: { telemetry: true, viewer: true },
+        // raw CAN 프레임 스니핑용 카드. GGOLCHA는 STM32가 CAN을 이미 물리값으로 계산해서
+        // VEHICLE 타입으로 넘겨주기 때문에 지금은 안 씀. 코드는 남겨두고 화면에서만 숨김.
+        display: { telemetry: false, viewer: false },
         view: {}
+    },
+    vehicle: {
+        name: 'Vehicle',
+        display: { telemetry: true },
+        ch: {
+            // unit 값은 실제 기호가 아니라 아래 units 객체의 key(스케일 이름)를 가리킴
+            rpm_L: { name: 'Motor RPM (L)', unit: 'RPM' },
+            rpm_R: { name: 'Motor RPM (R)', unit: 'RPM' },
+            throttle_L: { name: 'Throttle (L)', unit: 'Percent' },
+            throttle_R: { name: 'Throttle (R)', unit: 'Percent' },
+            voltage: { name: 'Battery', unit: 'Volt' },
+            current: { name: 'Current', unit: 'Current' },
+            soc_pct: { name: 'SOC', unit: 'Percent' },
+            encoder_angle: { name: 'Steering', unit: 'Angle' }
+        }
     },
     gps: {
         name: 'GPS',
@@ -46,7 +63,11 @@ export const units = reactive({
     Temperature: { unit: '°C', display: 'Temperature (°C)', default: true },
     Acceleration: { unit: 'g', display: 'Acceleration (g)', default: true },
     'Angular Velocity': { unit: '°/s', display: 'Angular Velocity (°/s)', default: true },
-    Speed: { unit: 'km/h', display: 'Speed (km/h)', default: true }
+    Speed: { unit: 'km/h', display: 'Speed (km/h)', default: true },
+    RPM: { unit: 'RPM', display: 'Motor Speed (RPM)', default: true },
+    Percent: { unit: '%', display: 'Percent (%)', default: true },
+    Current: { unit: 'A', display: 'Current (A)', default: true },
+    Angle: { unit: '°', display: 'Angle (°)', default: true }
 });
 
 export const defaults = {
