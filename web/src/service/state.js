@@ -95,7 +95,9 @@ export const telemetry = reactive({
     digital: { din1: false, din2: false, din3: false, din4: false },
     analog: [[], [], [], [], [], [], [], [], []],
     gyro: [[], [], [], [], [], [], []],
-    can: [[]]
+    can: [[]],
+    // [0]=timestamp, 1~8 = rpm_L, rpm_R, throttle_L, throttle_R, voltage, current, soc_pct, encoder_angle
+    vehicle: [[], [], [], [], [], [], [], [], []]
 });
 
 export function format_size(size) {
