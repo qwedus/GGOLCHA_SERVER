@@ -2,7 +2,7 @@ const PROTOCOL_VERSION = 1;
 const LOG_MAGIC = 0xae;
 const LOG_SIZE = 24;
 
-const LOG_TYPE = ['INVALID', 'BOOT', 'CAN', 'GPS', 'ANALOG', 'DIGITAL', 'GYROSCOPE', 'SYSTEM', 'USER_EVENT'];
+const LOG_TYPE = ['INVALID', 'BOOT', 'CAN', 'GPS', 'ANALOG', 'DIGITAL', 'GYROSCOPE', 'SYSTEM', 'USER_EVENT', 'VEHICLE'];
 
 // ---------------------------------------------------------------------------
 // FIELD_SCHEMA: 각 로그 타입의 "필드가 존재한다"는 사실을 여기 한 곳에만 정의한다.
