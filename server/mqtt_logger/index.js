@@ -38,7 +38,8 @@ const TYPE_MAP = {
     GYROSCOPE: { measurement: 'gyro', key: 'gyro' },
     SYSTEM: { measurement: 'event', key: 'sys' },
     USER_EVENT: { measurement: 'event', key: 'user' },
-    CAN: { measurement: 'can', key: 'can' }
+    CAN: { measurement: 'can', key: 'can' },
+    VEHICLE: { measurement: 'vehicle', key: 'vehicle' }
 };
 
 // device 이름 -> 마지막으로 관측된 부팅 시각(unix seconds).
@@ -139,6 +140,7 @@ client.on('message', (topic, message) => {
 
             case 'd/can': // CAN 로그 배치
             case 'd/sl': // 시스템 로그 배치
+            case 'd/vh': // VEHICLE 로그 배치
                 writeLogBatch(device, message);
                 break;
 
