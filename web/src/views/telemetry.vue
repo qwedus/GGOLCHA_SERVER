@@ -26,7 +26,8 @@ const container = {
     analog: ref(null),
     gyro: ref(null),
     gps: ref(null),
-    can: ref(null)
+    can: ref(null),
+    vehicle: ref(null)
 };
 
 onMounted(() => {
@@ -188,6 +189,33 @@ function init_chart() {
         container.can.value
     );
 
+    const vehicleSeries = [{ value: fmt.time }];
+
+    for (const [key, ch] of Object.entries(views.vehicle.ch)) {
+        vehicleSeries.push({
+            label: ch.name,
+            stroke: colors[vehicleSeries.length - 1],
+            value: fmt[ch.unit],
+            points: { show: false },
+            pxAlign: 0,
+            scale: ch.unit
+        });
+    }
+
+    telemetry.chart.vehicle = new uPlot(
+        {
+            width: initWidth,
+            height: initWidth * 0.6,
+            pxAlign: 0,
+            pxSnap: false,
+            scales: scales,
+            series: vehicleSeries,
+            axes: axes
+        },
+        telemetry.vehicle,
+        container.vehicle.value
+    );
+
     function tick() {
         const now = Date.now() / 1000;
         const scale = { min: now - 60, max: now };
@@ -336,6 +364,11 @@ function hex_only(event) {
             <div v-if="views.analog.display.telemetry" class="card">
                 <div class="font-semibold text-xl mb-4">Analog</div>
                 <div class="chart" :ref="container.analog"></div>
+            </div>
+
+            <div v-if="views.vehicle.display.telemetry" class="card">
+                <div class="font-semibold text-xl mb-4">Vehicle</div>
+                <div class="chart" :ref="container.vehicle"></div>
             </div>
 
             <div v-if="views.gyro.display.telemetry" class="card">
