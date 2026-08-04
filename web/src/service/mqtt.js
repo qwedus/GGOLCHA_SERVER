@@ -10,7 +10,7 @@ dayjs.extend(relativeTime);
 import mqtt from 'mqtt';
 
 import { term } from '@/service/terminal';
-import { update_telemetry, update_can } from '@/service/telemetry';
+import { update_telemetry, update_can, update_vehicle } from '@/service/telemetry';
 import { connection, config, times, files, format_size } from '@/service/state';
 import { parse_cfg, parse_log, parse_logbuf, to_uint } from '@/service/protocol';
 import { update_connection_server, update_connection_device } from '@/service/topbar';
@@ -156,6 +156,22 @@ export function init_mqtt() {
                     }
                 } catch (e) {
                     console.error(`CAN: ${e}`);
+                    console.error(message);
+                }
+                break;
+            }
+
+            case 'd/vh': {
+                if (times.boot.raw === null) break;
+
+                try {
+                    for (let offset = 0; offset + 24 <= message.length; offset += 24) {
+                        const log = parse_log(message.subarray(offset, offset + 24));
+                        update_time(log.timestamp);
+                        update_vehicle(log);
+                    }
+                } catch (e) {
+                    console.error(`VEHICLE: ${e}`);
                     console.error(message);
                 }
                 break;
