@@ -2,7 +2,7 @@ const PROTOCOL_VERSION = 1;
 const LOG_MAGIC = 0xae;
 const LOG_SIZE = 24;
 
-const LOG_TYPE = ['INVALID', 'BOOT', 'CAN', 'GPS', 'ANALOG', 'DIGITAL', 'GYROSCOPE', 'SYSTEM', 'USER_EVENT'];
+const LOG_TYPE = ['INVALID', 'BOOT', 'CAN', 'GPS', 'ANALOG', 'DIGITAL', 'GYROSCOPE', 'SYSTEM', 'USER_EVENT', 'VEHICLE'];
 
 // ---------------------------------------------------------------------------
 // FIELD_SCHEMA: 각 로그 타입의 "필드가 존재한다"는 사실을 여기 한 곳에만 정의한다.
@@ -68,7 +68,18 @@ const FIELD_SCHEMA = {
 
     SYS: [{ name: 'msg', offset: 8, type: 'string', length: 16 }],
 
-    USER: [{ name: 'msg', offset: 8, type: 'string', length: 16 }]
+    USER: [{ name: 'msg', offset: 8, type: 'string', length: 16 }],
+
+    VEHICLE: [
+        { name: 'rpm_L', offset: 8, bits: 16, signed: true },
+        { name: 'rpm_R', offset: 10, bits: 16, signed: true },
+        { name: 'voltage', offset: 12, bits: 16, signed: true, transform: (v) => v / 10 },
+        { name: 'current', offset: 14, bits: 16, signed: true, transform: (v) => v / 10 },
+        { name: 'encoder_angle', offset: 16, bits: 16, signed: true, transform: (v) => v / 10 },
+        { name: 'throttle_L', offset: 18, bits: 8, signed: false },
+        { name: 'throttle_R', offset: 19, bits: 8, signed: false },
+        { name: 'soc_pct', offset: 20, bits: 8, signed: false }
+    ]
 
     // BOOT, CAN은 각각 MAC 바이트 포맷팅 / 가변 길이 데이터 슬라이싱이 필요해서
     // 스키마 자동화 대상이 아니라 parse_log 안에서 그대로 특별 처리한다.
@@ -311,6 +322,9 @@ export function parse_log(buf) {
 
         case 'USER_EVENT':
             log.user = parse_fields(buf, FIELD_SCHEMA.USER);
+            break;
+        case 'VEHICLE':
+            log.vehicle = parse_fields(buf, FIELD_SCHEMA.VEHICLE);
             break;
 
         case 'INVALID':
