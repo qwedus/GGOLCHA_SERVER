@@ -38,7 +38,7 @@ const toggle_connections = (event) => {
                     <span>Connections</span>
                 </button>
 
-                <Popover ref="popup_connections" appendTo="self">
+                <Popover ref="popup_connections">
                     <div class="flex flex-col gap-4">
                         <div>Server <Tag :value="connection.server.value" :severity="connection.server.severity" class="ml-2"></Tag></div>
                         <div>Device <Tag :value="connection.device.value" :severity="connection.device.severity" class="ml-2"></Tag></div>
