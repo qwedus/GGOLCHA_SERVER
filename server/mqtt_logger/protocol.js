@@ -58,12 +58,10 @@ const FIELD_SCHEMA = {
     ],
 
     GPS: [
-        { name: 'latitude', offset: 8, bits: 32, signed: false, transform: to_dms },
-        { name: 'longitude', offset: 12, bits: 32, signed: false, transform: to_dms },
-        { name: 'lat_dir', offset: 16, type: 'string', length: 1 },
-        { name: 'lon_dir', offset: 17, type: 'string', length: 1 },
-        { name: 'speed', offset: 20, bits: 16, signed: false, transform: (v) => v / 100 },
-        { name: 'course', offset: 22, bits: 16, signed: false, transform: (v) => v / 100 }
+        { name: 'latitude',  offset: 8,  bits: 32, signed: true, transform: (v) => v / 1000000 },
+        { name: 'longitude', offset: 12, bits: 32, signed: true, transform: (v) => v / 1000000 },
+        { name: 'speed',     offset: 16, bits: 16, signed: true, transform: (v) => v / 10 },
+        { name: 'course',    offset: 18, bits: 16, signed: true, transform: (v) => v / 10 }
     ],
 
     SYS: [{ name: 'msg', offset: 8, type: 'string', length: 16 }],
