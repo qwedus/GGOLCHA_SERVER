@@ -26,6 +26,10 @@ export const update_connection_device = (value) => {
         if (connection.server.value === 'Online') {
             connection.status = 'text-red-400';
         }
+        state.forEach((item) => {
+            item.text = 'UNKNOWN';
+            item.status = 'secondary';
+        });
     } else {
         connection.device.value = 'Online';
         connection.device.severity = 'success';
