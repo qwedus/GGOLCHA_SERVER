@@ -341,7 +341,7 @@ function hex_only(event) {
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4 text-sm">
                     <template v-for="item in state" :key="item.name">
-                        <div v-if="item.name" class="flex items-center cardview">
+                        <div v-if="item.name && !item.hidden" class="flex items-center cardview">
                             <span class="w-full">{{ item.name }}</span>
                             <Tag :value="item.text" :severity="item.status" class="ml-2 state" />
                         </div>
