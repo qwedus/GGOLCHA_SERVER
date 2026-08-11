@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import ToastEventBus from 'primevue/toasteventbus';
-import { connection, state } from '@/service/state';
+import { connection, state, times } from '@/service/state';
 
 /*******************************************************************************
  * Topbar connection status
@@ -30,6 +30,9 @@ export const update_connection_device = (value) => {
             item.text = 'UNKNOWN';
             item.status = 'secondary';
         });
+        times.boot.value = '-';
+        times.current.value = '-';
+        times.uptime.value = '-';
     } else {
         connection.device.value = 'Online';
         connection.device.severity = 'success';
