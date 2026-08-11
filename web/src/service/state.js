@@ -1,4 +1,4 @@
-import { reactive } from 'vue';
+import { reactive, watch } from 'vue';
 import dayjs from 'dayjs/esm';
 
 export const connection = reactive({
@@ -64,19 +64,48 @@ export const files = reactive({
     }
 });
 
+
 export const state = reactive([
-    { name: '', text: 'UNKNOWN', status: 'secondary' }, // hide core state
-    { name: 'NVS', text: 'UNKNOWN', status: 'secondary' },
-    { name: 'RTC', text: 'UNKNOWN', status: 'secondary' },
-    { name: 'SD', text: 'UNKNOWN', status: 'secondary' },
-    { name: 'WIFI', text: 'UNKNOWN', status: 'secondary' },
-    { name: 'MQTT', text: 'UNKNOWN', status: 'secondary' },
-    { name: 'CAN', text: 'UNKNOWN', status: 'secondary' },
-    { name: 'GPS', text: 'UNKNOWN', status: 'secondary' },
-    { name: 'ANALOG', text: 'UNKNOWN', status: 'secondary' },
-    { name: 'DIGITAL', text: 'UNKNOWN', status: 'secondary' },
-    { name: 'GYRO', text: 'UNKNOWN', status: 'secondary' }
+    { name: '', text: 'UNKNOWN', status: 'secondary', hidden: false }, // hide core state
+    { name: 'NVS', text: 'UNKNOWN', status: 'secondary', hidden: false },
+    { name: 'RTC', text: 'UNKNOWN', status: 'secondary', hidden: true },   // 기본 숨김
+    { name: 'SD', text: 'UNKNOWN', status: 'secondary', hidden: false },
+    { name: 'WIFI', text: 'UNKNOWN', status: 'secondary', hidden: false },
+    { name: 'MQTT', text: 'UNKNOWN', status: 'secondary', hidden: false },
+    { name: 'CAN', text: 'UNKNOWN', status: 'secondary', hidden: false },
+    { name: 'GPS', text: 'UNKNOWN', status: 'secondary', hidden: false },
+    { name: 'ANALOG', text: 'UNKNOWN', status: 'secondary', hidden: false },
+    { name: 'DIGITAL', text: 'UNKNOWN', status: 'secondary', hidden: true }, // 기본 숨김
+    { name: 'GYRO', text: 'UNKNOWN', status: 'secondary', hidden: false }
 ]);
+
+// 저장된 숨김 설정 불러오기 (state 배열 선언 바로 다음에 추가)
+(function loadStateHidden() {
+    const saved = localStorage.getItem('state/hidden');
+    if (!saved) return;
+    try {
+        const parsed = JSON.parse(saved);
+        state.forEach((item) => {
+            if (item.name && parsed[item.name] !== undefined) {
+                item.hidden = parsed[item.name];
+            }
+        });
+    } catch (e) {
+        // 무시
+    }
+})();
+
+// hidden 값 바뀔 때마다 자동 저장
+watch(
+    () => state.map((item) => item.hidden),
+    () => {
+        const toSave = {};
+        state.forEach((item) => {
+            if (item.name) toSave[item.name] = item.hidden;
+        });
+        localStorage.setItem('state/hidden', JSON.stringify(toSave));
+    }
+);
 
 export const times = reactive({
     boot: { label: 'Boot', value: '-', raw: null },
