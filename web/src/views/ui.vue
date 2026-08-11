@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, computed } from 'vue';
 import { views, units, defaults } from '@/service/ui';
+import { state } from '@/service/state';
 
 import { useConfirm } from 'primevue/useconfirm';
 import ToastEventBus from 'primevue/toasteventbus';
@@ -339,6 +340,18 @@ function export_cfg() {
                             </li>
                         </ul>
                     </div>
+                </div>
+
+                <div>
+                    <div class="text-lg font-semibold">System State</div>
+                    <ul class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <template v-for="item in state" :key="item.name">
+                            <li v-if="item.name" class="flex items-center justify-between cardview">
+                                <label :for="'state-' + item.name" class="font-medium pr-3">{{ item.name }}</label>
+                                <ToggleSwitch :inputId="'state-' + item.name" :modelValue="!item.hidden" @update:modelValue="(v) => (item.hidden = !v)" />
+                            </li>
+                        </template>
+                    </ul>
                 </div>
 
                 <div class="card flex flex-col gap-4">
