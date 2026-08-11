@@ -342,8 +342,8 @@ function export_cfg() {
                     </div>
                 </div>
 
-                <div>
-                    <div class="text-lg font-semibold">System State</div>
+                <div class="card flex flex-col gap-4">
+                    <div class="font-semibold text-xl mb-2">System State</div>
                     <ul class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <template v-for="item in state" :key="item.name">
                             <li v-if="item.name" class="flex items-center justify-between cardview">
