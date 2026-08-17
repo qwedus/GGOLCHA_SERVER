@@ -48,20 +48,22 @@ const FIELD_SCHEMA = {
     ],
 
     GYRO: [
-        { name: 'accel_x', offset: 8, bits: 16, signed: true },
-        { name: 'accel_y', offset: 10, bits: 16, signed: true },
-        { name: 'accel_z', offset: 12, bits: 16, signed: true },
-        { name: 'temperature', offset: 14, bits: 16, signed: true },
-        { name: 'gyro_x', offset: 16, bits: 16, signed: true },
-        { name: 'gyro_y', offset: 18, bits: 16, signed: true },
-        { name: 'gyro_z', offset: 20, bits: 16, signed: true }
+    { name: 'yaw_rate', offset: 8,  bits: 16, signed: true, transform: (v) => v / 100 },
+    { name: 'gyro_x',   offset: 10, bits: 16, signed: true, transform: (v) => v / 100 },
+    { name: 'gyro_y',   offset: 12, bits: 16, signed: true, transform: (v) => v / 100 },
+    { name: 'gyro_z',   offset: 14, bits: 16, signed: true, transform: (v) => v / 100 },
+    { name: 'accel_x',  offset: 16, bits: 16, signed: true, transform: (v) => v / 1000 },
+    { name: 'accel_y',  offset: 18, bits: 16, signed: true, transform: (v) => v / 1000 },
+    { name: 'accel_z',  offset: 20, bits: 16, signed: true, transform: (v) => v / 1000 }
+    // temperature 필드 삭제 — STM telemetry.c(신규)는 온도를 안 보내고, 프론트도 원래 주석처리로 안 쓰고 있었음
     ],
 
     GPS: [
-        { name: 'latitude',  offset: 8,  bits: 32, signed: true, transform: (v) => v / 1000000 },
-        { name: 'longitude', offset: 12, bits: 32, signed: true, transform: (v) => v / 1000000 },
-        { name: 'speed',     offset: 16, bits: 16, signed: true, transform: (v) => v / 10 },
-        { name: 'course',    offset: 18, bits: 16, signed: true, transform: (v) => v / 10 }
+    { name: 'latitude',  offset: 8,  bits: 32, signed: true, transform: (v) => v / 1000000 },
+    { name: 'longitude', offset: 12, bits: 32, signed: true, transform: (v) => v / 1000000 },
+    { name: 'speed',     offset: 16, bits: 16, signed: true, transform: (v) => v / 10 },
+    { name: 'gps_valid', offset: 18, bits: 8,  signed: false }
+    // course 필드 삭제 — STM이 이제 이 자리에 gps_valid(1바이트)만 보냄, 방위각 자체를 안 보냄
     ],
 
     SYS: [{ name: 'msg', offset: 8, type: 'string', length: 16 }],
