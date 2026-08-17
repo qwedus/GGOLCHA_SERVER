@@ -10,6 +10,11 @@ import ToastEventBus from 'primevue/toasteventbus';
 
 const confirm = useConfirm();
 
+// [신규] B안 — 기존 net/ssid, net/passwd(set/cmd/cfg 프로토콜)와는 별개로,
+// ESP가 실제 구현한 cfg/wifi 토픽(테스트 접속 후 성공해야만 저장되는 안전한 방식) 전용 입력값.
+// 잘못 입력해도 ESP가 먼저 접속 테스트를 해보고 실패하면 기존 WiFi를 그대로 유지함.
+const safeWifi = ref({ ssid: '', pass: '', loading: false });
+
 onMounted(() => {
     config.server.addr.value = localStorage.getItem('server/addr');
     config.server.name.value = localStorage.getItem('server/name');
@@ -101,6 +106,49 @@ function set_cfg(event) {
     config.disabled = true;
 
     publish(`set/${target}`, payload, 1);
+}
+
+// [신규] B안 — 안전한 WiFi 전환 요청.
+// ESP32는 이 값을 즉시 저장하지 않고, 먼저 새 WiFi로 테스트 접속을 시도한 뒤
+// 성공했을 때만 반영한다. 실패하면 기존 WiFi를 그대로 유지한다.
+function set_safe_wifi() {
+    if (connection.device.value !== 'Online') {
+        ToastEventBus.emit('add', {
+            severity: 'error',
+            summary: 'WiFi 변경 실패',
+            detail: '디바이스가 오프라인 상태입니다.',
+            group: 'br',
+            life: 5000
+        });
+        return;
+    }
+
+    if (!safeWifi.value.ssid.trim()) {
+        ToastEventBus.emit('add', {
+            severity: 'error',
+            summary: 'WiFi 변경 실패',
+            detail: 'SSID를 입력해주세요.',
+            group: 'br',
+            life: 3000
+        });
+        return;
+    }
+
+    safeWifi.value.loading = true;
+
+    const payload = `${safeWifi.value.ssid.trim()},${safeWifi.value.pass}`;
+    publish('cfg/wifi', payload, 1);
+
+    ToastEventBus.emit('add', {
+        severity: 'info',
+        summary: 'WiFi 변경 요청 전송됨',
+        detail: '디바이스가 새 WiFi로 접속을 시도합니다. 실패하면 기존 WiFi를 유지합니다. 잠시 후 연결 상태를 확인해주세요.',
+        group: 'br',
+        life: 6000
+    });
+
+    safeWifi.value.pass = '';
+    safeWifi.value.loading = false;
 }
 
 function load_confirm() {
@@ -346,6 +394,30 @@ function download_file(name, size, index) {
                             </InputGroup>
                         </div>
                     </div>
+                </div>
+
+                <!-- [신규] B안 — 안전한 WiFi 변경 (기존 SSID/Password 필드와는 별개 경로).
+                     ESP가 cfg/wifi 토픽으로 받아 먼저 테스트 접속 후 성공해야만 반영함.
+                     실패 시 기존 WiFi를 자동으로 유지하므로 net/ssid, net/passwd + Restart 조합보다 안전함. -->
+                <div class="card flex flex-col gap-6">
+                    <div class="font-semibold text-xl">WiFi 변경 (안전모드)</div>
+                    <span class="text-sm text-surface-500">
+                        <span class="pi pi-shield mr-2"></span>
+                        새 WiFi 접속을 먼저 테스트한 뒤 성공했을 때만 적용됩니다. 실패하면 기존 WiFi가 그대로 유지됩니다.
+                    </span>
+                    <div class="grid grid-cols-12 gap-2">
+                        <label for="safe-wifi-ssid" class="flex items-center col-span-3">SSID</label>
+                        <div class="col-span-9">
+                            <InputText id="safe-wifi-ssid" v-model="safeWifi.ssid" placeholder="새 Wi-Fi SSID" class="w-full" />
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-12 gap-2">
+                        <label for="safe-wifi-pass" class="flex items-center col-span-3">Password</label>
+                        <div class="col-span-9">
+                            <InputText id="safe-wifi-pass" v-model="safeWifi.pass" type="password" placeholder="새 Wi-Fi 비밀번호" class="w-full" />
+                        </div>
+                    </div>
+                    <Button label="접속 테스트 후 변경" icon="pi pi-wifi" :loading="safeWifi.loading" :disabled="config.disabled" @click="set_safe_wifi" />
                 </div>
 
                 <div class="card flex flex-col gap-2">
