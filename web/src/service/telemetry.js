@@ -91,27 +91,33 @@ export function update_telemetry(data) {
     }
 
     if (data.gyro) {
-        telemetry.gyro[0].push(times.boot.raw + data.gyro.timestamp / 1000);
-        telemetry.gyro[1].push(convert.accel_to_g(data.gyro.gyro.accel_x));
-        telemetry.gyro[2].push(convert.accel_to_g(data.gyro.gyro.accel_y));
-        telemetry.gyro[3].push(convert.accel_to_g(data.gyro.gyro.accel_z));
-        // telemetry.gyro[4].push(data.gyro.gyro.temperature);
-        telemetry.gyro[4].push(convert.gyro_to_dps(data.gyro.gyro.gyro_x));
-        telemetry.gyro[5].push(convert.gyro_to_dps(data.gyro.gyro.gyro_y));
-        telemetry.gyro[6].push(convert.gyro_to_dps(data.gyro.gyro.gyro_z));
+    telemetry.gyro[0].push(times.boot.raw + data.gyro.timestamp / 1000);
+    // [수정] FIELD_SCHEMA에서 이미 g/dps 물리값으로 변환 끝났으므로 convert.* 다시 거치지 않고 바로 push
+    //        (VEHICLE 처리부와 동일한 패턴)
+    telemetry.gyro[1].push(data.gyro.gyro.accel_x);
+    telemetry.gyro[2].push(data.gyro.gyro.accel_y);
+    telemetry.gyro[3].push(data.gyro.gyro.accel_z);
+    telemetry.gyro[4].push(data.gyro.gyro.gyro_x);
+    telemetry.gyro[5].push(data.gyro.gyro.gyro_y);
+    telemetry.gyro[6].push(data.gyro.gyro.gyro_z);
+    // yaw_rate는 현재 그래프에 슬롯이 없어서 안 씀 (gyro_z와 개념상 겹침 — 필요하면 telemetry.gyro[7] 슬롯 추가해서 반영 가능)
 
-        trim(telemetry.gyro);
-        dirty.gyro = true;
-    }
+    trim(telemetry.gyro);
+    dirty.gyro = true;
+}
 
-    fix.value = !!data.gps && data.state?.gps === 'OK';
+// [수정] gps_valid를 fix 판정에 반영 — 링크는 신선(state.gps==='OK')해도 STM이 GPS fix를 못 잡았으면 fix=false로
+fix.value = !!data.gps && data.state?.gps === 'OK' && data.gps.gps.gps_valid === 1;
 
-    if (data.gps) {
-        speed.value = `${data.gps.gps.speed.toFixed(1)} km/h`;
-        course.value = `${data.gps.gps.course.toFixed(1)}°`;
+if (data.gps) {
+    speed.value = `${data.gps.gps.speed.toFixed(1)} km/h`;
+    // [수정] course 필드가 이제 없음 — STM이 방위각을 안 보내므로 표시 중단.
+    //        UI에 이 값을 계속 보여줘야 하면 STM 쪽에 course 필드 추가 요청 필요 (아래 참고)
+    // course.value = `${data.gps.gps.course.toFixed(1)}°`;
 
-        if (map.value) {
-            const latlng = [data.gps.gps.latitude, data.gps.gps.longitude];
+    if (map.value) {
+        const latlng = [data.gps.gps.latitude, data.gps.gps.longitude];
+        
 
             if (!current_pos) {
                 current_pos = L.circleMarker(latlng, {
