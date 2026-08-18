@@ -251,8 +251,15 @@ function init_chart() {
 
 function split_range(d_min, d_max) {
     if (d_min === d_max) {
-        d_min *= 0.85;
-        d_max *= 1.15;
+        if (d_min === 0) {
+            // [수정] 0===0일 때 0.85/1.15를 곱해도 여전히 0이라 step이 0/0=NaN이 되는 버그.
+            // 값이 딱 0으로 고정된 축(정지 상태 자이로 등)에서 차트 전체가 깨지는 원인이었음.
+            d_min = -1;
+            d_max = 1;
+        } else {
+            d_min *= 0.85;
+            d_max *= 1.15;
+        }
     }
 
     const tick = 5;
