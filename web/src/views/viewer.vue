@@ -1,7 +1,7 @@
 <script setup>
 defineOptions({ name: 'Viewer' });
 
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { dark } from '@/layout/composables/layout';
 import { parse, convert, signed, can_filter_match } from '@/service/protocol';
 import { fmt, digit, format_size } from '@/service/state';
@@ -60,10 +60,17 @@ const show = {
     gps: { name: 'GPS', ref: ref(false) },
     can: { name: 'CAN', ref: ref(false) }
 };
+    
+let sessions_timer = null;
 
 onMounted(() => {
     init_map(map, line, path, gps, hotlineMode.value);
     load_sessions();
+    sessions_timer = setInterval(load_sessions, 5000); // 5초마다 세션 목록 재조회
+});
+
+onUnmounted(() => {
+    clearInterval(sessions_timer);
 });
 
 async function load_sessions() {
