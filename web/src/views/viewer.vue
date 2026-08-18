@@ -16,6 +16,7 @@ import 'uplot/dist/uPlot.min.css';
 
 import dayjs from 'dayjs/esm';
 import { encode } from '@msgpack/msgpack';
+import { fetch_sessions, hide_session } from '@/service/sessions';
 
 const file = {
     device: ref(''),
@@ -48,6 +49,10 @@ const container = ref(null);
 let events = ref([]);
 const can_stats = ref([]);
 
+const current_device = localStorage.getItem('server/name');
+const sessions = ref([]);
+const db_page = ref(0);
+
 const show = {
     digital: { name: 'DIN', ref: ref(false) },
     analog: { name: 'AIN', ref: ref(false) },
@@ -58,7 +63,25 @@ const show = {
 
 onMounted(() => {
     init_map(map, line, path, gps, hotlineMode.value);
+    load_sessions();
 });
+
+async function load_sessions() {
+    try {
+        sessions.value = await fetch_sessions(current_device);
+    } catch (e) {
+        console.error('failed to load sessions:', e);
+    }
+}
+
+async function delete_session(s) {
+    try {
+        await hide_session(current_device, s.session);
+        sessions.value = sessions.value.filter((x) => x.session !== s.session);
+    } catch (e) {
+        console.error('failed to hide session:', e);
+    }
+}
 
 function upload(f) {
     file.name.value = f.files[0].name;
@@ -502,7 +525,6 @@ function split_range(d_min, d_max) {
     return { min, max, splits };
 }
 
-
 function switchHotlineMode(mode) {
     hotlineMode.value = mode;
     rebuild_hotline(map, line, path, mode);
@@ -692,6 +714,24 @@ function timelapse() {
                         </div>
                     </template>
                 </DataView>
+            </div>
+
+            <div class="card">
+                <div class="font-semibold text-xl mb-6">DB</div>
+                <DataView :value="sessions.slice(db_page * 4, db_page * 4 + 4)">
+                    <template #empty>
+                        <div class="p-4 text-center text-gray-400">No logged sessions.</div>
+                    </template>
+                    <template #list="{ items }">
+                        <div class="flex flex-col gap-2">
+                            <div v-for="s in items" :key="s.session" class="flex items-center justify-between py-2 px-2">
+                                <span class="font-semibold">{{ dayjs(s.start).format('YYYY-MM-DD HH:mm:ss') }}</span>
+                                <Button icon="pi pi-trash" severity="danger" text @click="delete_session(s)" />
+                            </div>
+                        </div>
+                    </template>
+                </DataView>
+                <Paginator v-if="sessions.length > 4" :rows="4" :totalRecords="sessions.length" @page="(e) => (db_page = e.page)" />
             </div>
         </div>
     </div>
