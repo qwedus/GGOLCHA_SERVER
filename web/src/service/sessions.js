@@ -12,3 +12,9 @@ export async function hide_session(device, session) {
     });
     if (!res.ok) throw new Error('failed to hide session');
 }
+
+export async function fetch_session_data(device, session) {
+    const res = await fetch(`/api/sessions/${encodeURIComponent(session)}/data?device=${encodeURIComponent(device)}`);
+    if (!res.ok) throw new Error('failed to fetch session data');
+    return (await res.json()).records;
+}
