@@ -74,6 +74,8 @@ function writeLog(device, log) {
             point.stringField(k, v);
         } else if (v instanceof Uint8Array) {
             point.stringField(k, Buffer.from(v).toString('hex'));
+        } else if (typeof v === 'boolean') {
+            point.booleanField(k, v);
         }
     }
 
