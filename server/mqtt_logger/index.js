@@ -129,6 +129,60 @@ async function hideSession(device, session) {
 }
 
 // ---------------------------------------------------------------------------
+// 세션 하나의 전체 로그 조회. Influx에 필드별로 쪼개져 저장된 point들을
+// pivot()으로 시점(_time)별 하나의 row로 합친 다음, viewer.vue의 set_data()가
+// 기대하는 log-record 형태({ type, timestamp, gps/analog/... })로 되돌린다.
+// ---------------------------------------------------------------------------
+const MEASUREMENT_TYPE = {
+    gps: { type: 'GPS', key: 'gps' },
+    analog: { type: 'ANALOG', key: 'analog' },
+    digital: { type: 'DIGITAL', key: 'digital' },
+    gyro: { type: 'GYROSCOPE', key: 'gyro' },
+    can: { type: 'CAN', key: 'can' },
+    vehicle: { type: 'VEHICLE', key: 'vehicle' },
+    event: { type: 'SYSTEM', key: 'sys' } // SYSTEM/USER_EVENT 둘 다 이 measurement라 구분이 안 됨 (아래 설명 참고)
+};
+
+async function fetchMeasurement(device, session, measurement) {
+    const flux = `
+        from(bucket: "${INFLUX_BUCKET}")
+          |> range(start: -365d)
+          |> filter(fn: (r) => r._measurement == "${measurement}" and r.device == "${device}" and r.session == "${session}")
+          |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+          |> sort(columns: ["_time"])`;
+    return queryApi.collectRows(flux);
+}
+
+async function getSessionData(device, session) {
+    const boot = Number(session);
+    const records = [];
+
+    for (const [measurement, info] of Object.entries(MEASUREMENT_TYPE)) {
+        const rows = await fetchMeasurement(device, session, measurement);
+
+        for (const r of rows) {
+            const { _time, _start, _stop, _measurement, table, result, device: _d, session: _s, ...fields } = r;
+
+            // CAN data는 쓸 때 Uint8Array -> hex 문자열로 저장했으니, 그래프 쪽에서 쓰던
+            // Uint8Array 형태로 되돌려줘야 can_byte/can_bit 디코딩이 정상 동작한다.
+            if (measurement === 'can' && typeof fields.data === 'string') {
+                const bytes = fields.data.match(/.{1,2}/g) || [];
+                fields.data = Uint8Array.from(bytes.map((b) => parseInt(b, 16)));
+            }
+
+            records.push({
+                type: info.type,
+                timestamp: new Date(_time).getTime() - boot * 1000,
+                [info.key]: fields
+            });
+        }
+    }
+
+    records.sort((a, b) => a.timestamp - b.timestamp);
+    return records;
+}
+
+// ---------------------------------------------------------------------------
 // 조회용 HTTP 서버. 웹 프론트는 nginx의 /api/sessions 프록시를 통해 이 서버로 들어온다.
 // 쓰기(mqtt_logger 본연의 역할)와 같은 프로세스 안에서 InfluxDB 클라이언트/env를
 // 공유하기 위해 별도 서비스로 분리하지 않았다.
@@ -149,6 +203,23 @@ const server = createServer(async (req, res) => {
 
             const sessions = await listSessions(device);
             res.end(JSON.stringify({ sessions }));
+            return;
+        }
+
+        // 여기가 새로 추가되는 부분
+        const dataMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/data$/);
+        if (req.method === 'GET' && dataMatch) {
+            const device = url.searchParams.get('device');
+            const session = dataMatch[1];
+
+            if (!device) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'device is required' }));
+                return;
+            }
+
+            const records = await getSessionData(device, session);
+            res.end(JSON.stringify({ records }));
             return;
         }
 
