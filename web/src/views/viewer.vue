@@ -8,6 +8,7 @@ import { fmt, digit, format_size } from '@/service/state';
 import { views, units, can_decoder, colors } from '@/service/ui';
 import { init_map, rebuild_hotline, HOTLINE_MODE } from '@/service/map';
 import { plugin_wheel_zoom, plugin_touch_zoom } from '@/service/uplot';
+import { fetch_sessions, hide_session, fetch_session_data } from '@/service/sessions';
 
 import L from 'leaflet';
 
@@ -87,6 +88,35 @@ async function delete_session(s) {
         sessions.value = sessions.value.filter((x) => x.session !== s.session);
     } catch (e) {
         console.error('failed to hide session:', e);
+    }
+}
+
+async function load_session(s) {
+    try {
+        const records = await fetch_session_data(current_device, s.session);
+
+        bt = Number(s.session);
+        file.name.value = `${current_device}_${dayjs(s.start).format('YYYYMMDD_HHmmss')}`;
+        file.device.value = current_device;
+        file.boot.value = dayjs(bt * 1000).format('YYYY-MM-DD HH:mm:ss (UTC Z)');
+        file.statistic.value = `${records.length.toLocaleString()} logs (from DB)`;
+        parsed_data.value = records;
+
+        const last = records.length ? records[records.length - 1].timestamp : 0;
+        const d = dayjs.duration(last);
+        const hours = Math.floor(d.asHours());
+        const minutes = d.minutes();
+        const seconds = d.seconds();
+
+        file.duration.value = '';
+        if (hours > 0) file.duration.value += `${hours} hr `;
+        if (minutes > 0) file.duration.value += `${minutes} min `;
+        file.duration.value += `${seconds} sec`;
+
+        init_chart();
+        set_data(records);
+    } catch (e) {
+        console.error('failed to load session data:', e);
     }
 }
 
@@ -732,7 +762,7 @@ function timelapse() {
                     <template #list="{ items }">
                         <div class="flex flex-col gap-2">
                             <div v-for="s in items" :key="s.session" class="flex items-center justify-between py-2 px-2">
-                                <span class="font-semibold">{{ dayjs(s.start).format('YYYY-MM-DD HH:mm:ss') }}</span>
+                                <span class="font-semibold cursor-pointer hover:underline" @click="load_session(s)">{{ dayjs(s.start).format('YYYY-MM-DD HH:mm:ss') }}</span>
                                 <Button icon="pi pi-trash" severity="danger" text @click="delete_session(s)" />
                             </div>
                         </div>
