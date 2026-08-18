@@ -39,7 +39,9 @@
 
 .u-legend {
   display: grid!important;
-  @apply grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6;
+  @apply grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5;
+  column-gap: 1rem;
+  row-gap: 0.25rem;
 }
 
 .u-legend table,
@@ -54,6 +56,9 @@
   align-items: center;
   white-space: nowrap;
   box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .u-legend .u-series:first-child .u-marker {
