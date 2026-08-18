@@ -1,6 +1,7 @@
 import mqtt from 'mqtt';
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
 import { parse_log, parse_logbuf, to_uint } from './protocol.js';
+import { createServer } from 'node:http';
 
 // ---------------------------------------------------------------------------
 // 설정: 전부 환경변수로 주입 (docker-compose.yml의 environment/.env에서 관리)
@@ -15,11 +16,14 @@ const INFLUX_TOKEN = process.env.INFLUX_TOKEN || '';
 const INFLUX_ORG = process.env.INFLUX_ORG || 'ggolcha';
 const INFLUX_BUCKET = process.env.INFLUX_BUCKET || 'telemetry';
 
+const HTTP_PORT = process.env.HTTP_PORT || '8080';
+
 // ---------------------------------------------------------------------------
 // InfluxDB 클라이언트
 // ---------------------------------------------------------------------------
 const influx = new InfluxDB({ url: INFLUX_URL, token: INFLUX_TOKEN });
 const writeApi = influx.getWriteApi(INFLUX_ORG, INFLUX_BUCKET, 'ms');
+const queryApi = influx.getQueryApi(INFLUX_ORG);
 
 // 주기적으로 배치 flush (기본은 write 호출마다 바로 안 나가고 버퍼링됨)
 setInterval(() => {
@@ -87,6 +91,93 @@ function writeLogBatch(device, message) {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// 세션 조회 / 소프트 삭제
+// session 태그값 자체가 boot(unix seconds)라서, 별도로 시각을 조회할 필요 없이
+// tagValues만 가져오면 목록+시작시각을 동시에 구한다.
+// 삭제는 실제 데이터를 지우지 않고, session_meta measurement에 hidden=true 포인트를
+// 하나 남겨서 조회 시 걸러내는 방식(soft delete)이다.
+// ---------------------------------------------------------------------------
+async function listSessions(device) {
+    const sessionsFlux = `
+        import "influxdata/influxdb/schema"
+        schema.tagValues(bucket: "${INFLUX_BUCKET}", tag: "session",
+            predicate: (r) => r.device == "${device}", start: -365d)`;
+
+    const hiddenFlux = `
+        from(bucket: "${INFLUX_BUCKET}")
+          |> range(start: -365d)
+          |> filter(fn: (r) => r._measurement == "session_meta" and r.device == "${device}" and r._field == "hidden")
+          |> last()`;
+
+    const [sessionRows, hiddenRows] = await Promise.all([queryApi.collectRows(sessionsFlux), queryApi.collectRows(hiddenFlux)]);
+
+    const hidden = new Set(hiddenRows.map((r) => r.session));
+
+    return sessionRows
+        .map((r) => r._value)
+        .filter((s) => !hidden.has(s))
+        .map((s) => ({ session: s, start: Number(s) * 1000 }))
+        .sort((a, b) => b.start - a.start);
+}
+
+async function hideSession(device, session) {
+    const point = new Point('session_meta').tag('device', device).tag('session', String(session)).booleanField('hidden', true);
+    writeApi.writePoint(point);
+    await writeApi.flush();
+}
+
+// ---------------------------------------------------------------------------
+// 조회용 HTTP 서버. 웹 프론트는 nginx의 /api/sessions 프록시를 통해 이 서버로 들어온다.
+// 쓰기(mqtt_logger 본연의 역할)와 같은 프로세스 안에서 InfluxDB 클라이언트/env를
+// 공유하기 위해 별도 서비스로 분리하지 않았다.
+// ---------------------------------------------------------------------------
+const server = createServer(async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+
+    try {
+        const url = new URL(req.url, 'http://localhost');
+
+        if (req.method === 'GET' && url.pathname === '/api/sessions') {
+            const device = url.searchParams.get('device');
+            if (!device) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'device is required' }));
+                return;
+            }
+
+            const sessions = await listSessions(device);
+            res.end(JSON.stringify({ sessions }));
+            return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/sessions/hide') {
+            let body = '';
+            for await (const chunk of req) body += chunk;
+
+            const { device, session } = JSON.parse(body || '{}');
+            if (!device || !session) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'device and session are required' }));
+                return;
+            }
+
+            await hideSession(device, session);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
+        res.statusCode = 404;
+        res.end(JSON.stringify({ error: 'not found' }));
+    } catch (e) {
+        console.error('[http] error:', e.message);
+        res.statusCode = 500;
+        res.end(JSON.stringify({ error: 'internal error' }));
+    }
+});
+
+server.listen(HTTP_PORT, () => console.log(`[http] sessions API listening on :${HTTP_PORT}`));
 
 // ---------------------------------------------------------------------------
 // MQTT 연결. mosquitto와 같은 docker 네트워크 안이라 TLS 없이 내부 포트(1883)로 접속.
@@ -162,6 +253,7 @@ async function shutdown() {
     } catch (e) {
         console.error('flush on shutdown failed:', e.message);
     }
+    server.close();
     client.end();
     process.exit(0);
 }
