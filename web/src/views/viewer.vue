@@ -17,7 +17,7 @@ import 'uplot/dist/uPlot.min.css';
 
 import dayjs from 'dayjs/esm';
 import { encode } from '@msgpack/msgpack';
-import { fetch_sessions, hide_session } from '@/service/sessions';
+
 
 const file = {
     device: ref(''),
