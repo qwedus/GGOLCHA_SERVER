@@ -283,56 +283,9 @@ function send_usrevt() {
     publish('cmd/evt', cons.usrevt, 1);
 }
 
-function send_can() {
-    const id = parseInt(cons.can.id.trim(), 16);
-
-    if (isNaN(id)) {
-        return ToastEventBus.emit('add', { severity: 'error', summary: 'Invalid CAN ID', group: 'br', life: 3000 });
-    }
-
-    if (id < 0 || id > (1 << 29) - 1) {
-        return ToastEventBus.emit('add', {
-            severity: 'error',
-            summary: 'CAN ID out of range',
-            detail: 'ID must be within 29 bits.',
-            group: 'br',
-            life: 3000
-        });
-    }
-
-    const payload = new Uint8Array(8);
-
-    for (let i = 0; i < cons.can.data.length; i++) {
-        if (cons.can.data[i].trim() === '') {
-            cons.can.data[i] = '00';
-        }
-
-        const v = parseInt(cons.can.data[i].trim(), 16);
-
-        if (isNaN(v) || v < 0 || v > 255) {
-            return ToastEventBus.emit('add', {
-                severity: 'error',
-                summary: `Invalid CAN Data Byte D${i}`,
-                group: 'br',
-                life: 3000
-            });
-        }
-
-        payload[i] = v;
-    }
-
-    publish(`cmd/can/${id}`, payload, 1);
-}
-
 function ascii_only(event) {
     if (!/^[\x20-\x7E]*$/.test(event.target.value)) {
         event.target.value = event.target.value.replace(/[^\x20-\x7E]/g, '');
-    }
-}
-
-function hex_only(event) {
-    if (!/^[0-9A-Fa-fx]*$/.test(event.target.value)) {
-        event.target.value = event.target.value.replace(/[^0-9A-Fa-fx]/g, '');
     }
 }
 </script>
@@ -431,17 +384,6 @@ function hex_only(event) {
                     </InputGroup>
                     <Message size="small" severity="secondary" variant="simple">Only ASCII characters up to 16 bytes.</Message>
                 </div>
-                <div>
-                    <label>Transmit CAN Message</label>
-                    <InputGroup class="mt-4 mb-2">
-                        <InputText v-model="cons.can.id" placeholder="CAN Message ID" maxlength="10" @keyup="hex_only" />
-                        <Button icon="pi pi-send" @click="send_can" />
-                    </InputGroup>
-                    <InputGroup class="mt-4 mb-3">
-                        <InputText v-model="cons.can.data[n - 1]" v-for="n in 8" :key="n" :placeholder="`D${n - 1}`" maxlength="4" @keyup="hex_only" class="can_data" />
-                    </InputGroup>
-                    <Message size="small" severity="secondary" variant="simple">CAN msg ID and data bytes in HEX format.</Message>
-                </div>
             </div>
 
             <div class="card">
@@ -470,10 +412,5 @@ function hex_only(event) {
 
 .timetag .p-tag-label {
     font-size: 0.95rem;
-}
-
-.can_data {
-    font-size: 0.9rem !important;
-    height: 2.25rem;
 }
 </style>
