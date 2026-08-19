@@ -18,3 +18,12 @@ export async function fetch_session_data(device, session) {
     if (!res.ok) throw new Error('failed to fetch session data');
     return (await res.json()).records;
 }
+
+export async function rename_session(device, session, name) {
+    const res = await fetch('/api/sessions/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device, session, name })
+    });
+    if (!res.ok) throw new Error('failed to rename session');
+}
