@@ -113,19 +113,36 @@ async function listSessions(device) {
           |> filter(fn: (r) => r._measurement == "session_meta" and r.device == "${device}" and r._field == "hidden")
           |> last()`;
 
-    const [sessionRows, hiddenRows] = await Promise.all([queryApi.collectRows(sessionsFlux), queryApi.collectRows(hiddenFlux)]);
+    const nameFlux = `
+        from(bucket: "${INFLUX_BUCKET}")
+          |> range(start: -365d)
+          |> filter(fn: (r) => r._measurement == "session_meta" and r.device == "${device}" and r._field == "name")
+          |> last()`;
+
+    const [sessionRows, hiddenRows, nameRows] = await Promise.all([
+        queryApi.collectRows(sessionsFlux),
+        queryApi.collectRows(hiddenFlux),
+        queryApi.collectRows(nameFlux)
+    ]);
 
     const hidden = new Set(hiddenRows.map((r) => r.session));
+    const names = new Map(nameRows.map((r) => [r.session, r._value]));
 
     return sessionRows
         .map((r) => r._value)
         .filter((s) => !hidden.has(s))
-        .map((s) => ({ session: s, start: Number(s) * 1000 }))
+        .map((s) => ({ session: s, start: Number(s) * 1000, name: names.get(s) || null }))
         .sort((a, b) => b.start - a.start);
 }
 
 async function hideSession(device, session) {
     const point = new Point('session_meta').tag('device', device).tag('session', String(session)).booleanField('hidden', true);
+    writeApi.writePoint(point);
+    await writeApi.flush();
+}
+
+async function renameSession(device, session, name) {
+    const point = new Point('session_meta').tag('device', device).tag('session', String(session)).stringField('name', name);
     writeApi.writePoint(point);
     await writeApi.flush();
 }
@@ -237,6 +254,21 @@ const server = createServer(async (req, res) => {
             }
 
             await hideSession(device, session);
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+      if (req.method === 'POST' && url.pathname === '/api/sessions/rename') {
+            let body = '';
+            for await (const chunk of req) body += chunk;
+
+            const { device, session, name } = JSON.parse(body || '{}');
+            if (!device || !session || !name) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'device, session and name are required' }));
+                return;
+            }
+
+            await renameSession(device, session, name.trim().slice(0, 100));
             res.end(JSON.stringify({ ok: true }));
             return;
         }
