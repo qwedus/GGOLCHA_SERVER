@@ -1,9 +1,10 @@
 <script setup>
 defineOptions({ name: 'DeviceConfiguration' });
 
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { init_mqtt, publish } from '@/service/mqtt';
 import { connection, config, files, format_size } from '@/service/state';
+import { is_admin, set_admin_key, clear_admin_key } from '@/service/admin';
 
 import { useConfirm } from 'primevue/useconfirm';
 import ToastEventBus from 'primevue/toasteventbus';
@@ -15,26 +16,23 @@ const confirm = useConfirm();
 // 잘못 입력해도 ESP가 먼저 접속 테스트를 해보고 실패하면 기존 WiFi를 그대로 유지함.
 const safeWifi = ref({ ssid: '', pass: '', loading: false });
 
-// [신규] 관리자 키 — 여기 입력된 값이 localStorage의 admin/key와 일치하면 관리자 모드로 승격됨.
-// mosquitto 상에서는 honeycar-admin 계정으로 재접속하게 되고(서비스/mqtt.js에서 처리),
-// 프론트엔드 쓰기 동작(publish 게이트)도 이 값을 기준으로 판단한다.
-const adminKey = ref({ value: '', loading: false });
-const is_admin = computed(() => !!localStorage.getItem('admin/key'));
+// [신규] 관리자 키 — is_admin/set_admin_key/clear_admin_key는 모두 @/service/admin에서 온
+// 앱 전역 공유 상태다. 여기 입력한 값이 맞으면 관리자 모드로 승격되고, 10분이 지나면
+// admin.js 내부 타이머가 자동으로 뷰어 모드로 되돌린다(로그인 상태를 여기서 다시 들여다볼 필요 없음).
+const adminKeyInput = ref('');
+const adminKeyLoading = ref(false);
 
-function save_admin_key() {
-    adminKey.value.loading = true;
+function toggle_admin() {
+    adminKeyLoading.value = true;
 
-    const trimmed = adminKey.value.value.trim();
-    if (trimmed) {
-        localStorage.setItem('admin/key', trimmed);
+    if (is_admin.value) {
+        clear_admin_key(false);
     } else {
-        localStorage.removeItem('admin/key');
+        set_admin_key(adminKeyInput.value);
     }
 
-    init_mqtt();
-
-    adminKey.value.loading = false;
-    adminKey.value.value = '';
+    adminKeyLoading.value = false;
+    adminKeyInput.value = '';
 
     ToastEventBus.emit('add', {
         severity: 'success',
@@ -385,27 +383,28 @@ function download_file(name, size, index) {
                     </div>
                 </div>
 
-                <!-- [신규] 관리자 키 카드 — 누구나 볼 수 있음. 여기에 관리자 키를 입력해야
-                     아래의 설정 변경/삭제 카드들이 나타나고 mosquitto에도 honeycar-admin으로 재접속함. -->
+                <!-- [신규] 관리자 키 카드 — 누구나 볼 수 있음. 여기서 로그인하면 10분간 관리자 모드가 유지되고,
+                     10분이 지나면 admin.js의 내부 타이머가 자동으로 뷰어 모드로 되돌린다. -->
                 <div class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">Admin</div>
                     <div class="grid grid-cols-12 gap-2">
                         <label for="admin-key" class="flex items-center col-span-3">Admin Key</label>
                         <div class="col-span-9">
                             <InputGroup>
-                                <InputText id="admin-key" v-model="adminKey.value" type="password" :placeholder="is_admin ? '••••••••' : 'Enter admin key'" />
+                                <InputText id="admin-key" v-model="adminKeyInput" type="password" :disabled="is_admin" :placeholder="is_admin ? '••••••••' : 'Enter admin key'" />
                                 <Button
                                     :icon="is_admin ? 'pi pi-sign-out' : 'pi pi-sign-in'"
+                                    :label="is_admin ? 'Logout' : 'Login'"
                                     :severity="is_admin ? 'danger' : 'primary'"
                                     class="mr-2 mb-2"
-                                    :loading="adminKey.loading"
-                                    @click="save_admin_key"
+                                    :loading="adminKeyLoading"
+                                    @click="toggle_admin"
                                 />
                             </InputGroup>
                         </div>
                     </div>
-                    <Message v-if="is_admin" size="small" severity="success" variant="simple">Admin mode active — configuration changes are enabled.</Message>
-                    <Message v-else size="small" severity="secondary" variant="simple">Viewer mode — read-only. Enter the admin key to unlock configuration.</Message>
+                    <Message v-if="is_admin" size="small" severity="success" variant="simple">Admin mode active — configuration changes are enabled. Automatically returns to viewer mode after 10 minutes.</Message>
+                    <Message v-else size="small" severity="secondary" variant="simple">Viewer mode — read-only. Enter the admin key to unlock configuration for 10 minutes.</Message>
                 </div>
 
                 <div v-if="is_admin" class="card flex flex-col gap-6">
