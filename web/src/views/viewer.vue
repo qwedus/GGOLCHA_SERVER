@@ -9,8 +9,11 @@ import { views, units, can_decoder, colors } from '@/service/ui';
 import { init_map, rebuild_hotline, HOTLINE_MODE } from '@/service/map';
 import { plugin_wheel_zoom, plugin_touch_zoom } from '@/service/uplot';
 import { fetch_sessions, hide_session, fetch_session_data, rename_session } from '@/service/sessions';
+import { is_admin } from '@/service/admin';
+
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
+
 import L from 'leaflet';
 
 import uPlot from 'uplot';
@@ -18,7 +21,6 @@ import 'uplot/dist/uPlot.min.css';
 
 import dayjs from 'dayjs/esm';
 import { encode } from '@msgpack/msgpack';
-
 
 const file = {
     device: ref(''),
@@ -50,7 +52,6 @@ const container = ref(null);
 
 let events = ref([]);
 const can_stats = ref([]);
-const is_admin = ref(!!localStorage.getItem('admin/key'));
 
 const current_device = localStorage.getItem('server/name');
 const sessions = ref([]);
@@ -84,6 +85,7 @@ function cancel_rename() {
 
 async function save_rename(s) {
     const name = edit_name_value.value.trim();
+
     if (!name) {
         cancel_rename();
         return;
@@ -108,7 +110,7 @@ const show = {
     gps: { name: 'GPS', ref: ref(false) },
     can: { name: 'CAN', ref: ref(false) }
 };
-    
+
 let sessions_timer = null;
 
 onMounted(() => {
@@ -141,7 +143,6 @@ async function delete_session(s) {
 async function load_session(s) {
     try {
         const records = await fetch_session_data(current_device, s.session);
-
         bt = Number(s.session);
         file.name.value = `${current_device}_${dayjs(s.start).format('YYYYMMDD_HHmmss')}`;
         file.device.value = current_device;
@@ -156,6 +157,7 @@ async function load_session(s) {
         const seconds = d.seconds();
 
         file.duration.value = '';
+
         if (hours > 0) file.duration.value += `${hours} hr `;
         if (minutes > 0) file.duration.value += `${minutes} min `;
         file.duration.value += `${seconds} sec`;
