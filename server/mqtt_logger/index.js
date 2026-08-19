@@ -18,6 +18,11 @@ const INFLUX_BUCKET = process.env.INFLUX_BUCKET || 'telemetry';
 
 const HTTP_PORT = process.env.HTTP_PORT || '8080';
 
+// 뷰어 키 = honeycar 계정 비밀번호(server/key)랑 동일한 값.
+// 관리자 키 = honeycar-admin 계정 비밀번호랑 동일한 값.
+const VIEWER_KEY = process.env.VIEWER_KEY || '';
+const ADMIN_KEY = process.env.ADMIN_KEY || '';
+
 // ---------------------------------------------------------------------------
 // InfluxDB 클라이언트
 // ---------------------------------------------------------------------------
@@ -32,8 +37,6 @@ setInterval(() => {
 
 // ---------------------------------------------------------------------------
 // log.type -> InfluxDB measurement / log 안에서 실제 데이터가 들어있는 key 매핑.
-// protocol.js의 FIELD_SCHEMA가 필드 목록을 정의하듯, 여기는 "타입 -> 저장 위치"만
-// 정의한다. 필드 자체가 늘어나도 이 매핑은 안 바뀜 (Object.entries로 자동 순회하니까).
 // ---------------------------------------------------------------------------
 const TYPE_MAP = {
     GPS: { measurement: 'gps', key: 'gps' },
@@ -47,9 +50,6 @@ const TYPE_MAP = {
 };
 
 // device 이름 -> 마지막으로 관측된 부팅 시각(unix seconds).
-// 세션 구분용 tag이자, 로그의 상대 timestamp(ms since boot)를 절대 시각으로
-// 바꾸는 기준값으로도 쓴다. 디바이스가 OFFLINE 되면 삭제되어, 재부팅 전까지는
-// 안전하게 값을 버린다 (부팅 시각을 모르는 상태로 잘못된 절대시각을 쓰지 않기 위함).
 const bootTime = new Map();
 
 function writeLog(device, log) {
@@ -72,10 +72,10 @@ function writeLog(device, log) {
             point.floatField(k, v);
         } else if (typeof v === 'string') {
             point.stringField(k, v);
-        } else if (v instanceof Uint8Array) {
-            point.stringField(k, Buffer.from(v).toString('hex'));
         } else if (typeof v === 'boolean') {
             point.booleanField(k, v);
+        } else if (v instanceof Uint8Array) {
+            point.stringField(k, Buffer.from(v).toString('hex'));
         }
     }
 
@@ -95,11 +95,10 @@ function writeLogBatch(device, message) {
 }
 
 // ---------------------------------------------------------------------------
-// 세션 조회 / 소프트 삭제
+// 세션 목록 / 소프트 삭제 / 이름 변경
 // session 태그값 자체가 boot(unix seconds)라서, 별도로 시각을 조회할 필요 없이
-// tagValues만 가져오면 목록+시작시각을 동시에 구한다.
-// 삭제는 실제 데이터를 지우지 않고, session_meta measurement에 hidden=true 포인트를
-// 하나 남겨서 조회 시 걸러내는 방식(soft delete)이다.
+// tagValues만 가져오면 목록+시작시각을 동시에 구한다. 삭제/이름은 session_meta
+// measurement에 별도 필드로 남겨서, 원본 텔레메트리 데이터는 절대 건드리지 않는다.
 // ---------------------------------------------------------------------------
 async function listSessions(device) {
     const sessionsFlux = `
@@ -159,7 +158,7 @@ const MEASUREMENT_TYPE = {
     gyro: { type: 'GYROSCOPE', key: 'gyro' },
     can: { type: 'CAN', key: 'can' },
     vehicle: { type: 'VEHICLE', key: 'vehicle' },
-    event: { type: 'SYSTEM', key: 'sys' } // SYSTEM/USER_EVENT 둘 다 이 measurement라 구분이 안 됨 (아래 설명 참고)
+    event: { type: 'SYSTEM', key: 'sys' } // SYSTEM/USER_EVENT 구분은 저장 시 유실됨 (알려진 한계)
 };
 
 async function fetchMeasurement(device, session, measurement) {
@@ -202,14 +201,29 @@ async function getSessionData(device, session) {
 }
 
 // ---------------------------------------------------------------------------
+// 요청 헤더(X-Access-Key)로 뷰어/관리자 권한을 판별.
+// ---------------------------------------------------------------------------
+function getRole(req) {
+    const key = req.headers['x-access-key'] || '';
+    if (ADMIN_KEY && key === ADMIN_KEY) return 'admin';
+    if (VIEWER_KEY && key === VIEWER_KEY) return 'viewer';
+    return null;
+}
+
+// ---------------------------------------------------------------------------
 // 조회용 HTTP 서버. 웹 프론트는 nginx의 /api/sessions 프록시를 통해 이 서버로 들어온다.
-// 쓰기(mqtt_logger 본연의 역할)와 같은 프로세스 안에서 InfluxDB 클라이언트/env를
-// 공유하기 위해 별도 서비스로 분리하지 않았다.
 // ---------------------------------------------------------------------------
 const server = createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
 
     try {
+        const role = getRole(req);
+        if (!role) {
+            res.statusCode = 401;
+            res.end(JSON.stringify({ error: 'unauthorized' }));
+            return;
+        }
+
         const url = new URL(req.url, 'http://localhost');
 
         if (req.method === 'GET' && url.pathname === '/api/sessions') {
@@ -225,7 +239,6 @@ const server = createServer(async (req, res) => {
             return;
         }
 
-        // 여기가 새로 추가되는 부분
         const dataMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/data$/);
         if (req.method === 'GET' && dataMatch) {
             const device = url.searchParams.get('device');
@@ -243,6 +256,12 @@ const server = createServer(async (req, res) => {
         }
 
         if (req.method === 'POST' && url.pathname === '/api/sessions/hide') {
+            if (role !== 'admin') {
+                res.statusCode = 403;
+                res.end(JSON.stringify({ error: 'admin key required' }));
+                return;
+            }
+
             let body = '';
             for await (const chunk of req) body += chunk;
 
@@ -257,7 +276,14 @@ const server = createServer(async (req, res) => {
             res.end(JSON.stringify({ ok: true }));
             return;
         }
-      if (req.method === 'POST' && url.pathname === '/api/sessions/rename') {
+
+        if (req.method === 'POST' && url.pathname === '/api/sessions/rename') {
+            if (role !== 'admin') {
+                res.statusCode = 403;
+                res.end(JSON.stringify({ error: 'admin key required' }));
+                return;
+            }
+
             let body = '';
             for await (const chunk of req) body += chunk;
 
@@ -286,7 +312,6 @@ server.listen(HTTP_PORT, () => console.log(`[http] sessions API listening on :${
 
 // ---------------------------------------------------------------------------
 // MQTT 연결. mosquitto와 같은 docker 네트워크 안이라 TLS 없이 내부 포트(1883)로 접속.
-// mqtt.js 라이브러리는 기본적으로 연결 끊기면 자동 재연결한다 (reconnectPeriod 기본 1s).
 // ---------------------------------------------------------------------------
 const client = mqtt.connect(`mqtt://${MQTT_HOST}:${MQTT_PORT}`, {
     username: MQTT_USERNAME,
@@ -297,8 +322,6 @@ const client = mqtt.connect(`mqtt://${MQTT_HOST}:${MQTT_PORT}`, {
 
 client.on('connect', () => {
     console.log('[mqtt] connected, subscribing to all device data topics');
-    // 모든 디바이스(+)의 데이터 토픽(d, d/boot, d/can, d/sl 등)을 구독.
-    // ack/#, d/cfg 처럼 원격제어 응답/설정 관련 토픽은 로깅 대상이 아니라 제외.
     client.subscribe('+/d/#');
 });
 
@@ -326,7 +349,6 @@ client.on('message', (topic, message) => {
             }
 
             case 'd': {
-                // 주기적 스냅샷: 내부에 gps/gyro/analog/digital 서브 로그를 포함
                 const logbuf = parse_logbuf(message);
                 for (const key of ['gps', 'gyro', 'analog', 'digital']) {
                     if (logbuf[key]) writeLog(device, logbuf[key]);
@@ -334,14 +356,14 @@ client.on('message', (topic, message) => {
                 break;
             }
 
-            case 'd/can': // CAN 로그 배치
-            case 'd/sl': // 시스템 로그 배치
-            case 'd/vh': // VEHICLE 로그 배치
+            case 'd/can':
+            case 'd/sl':
+            case 'd/vh':
                 writeLogBatch(device, message);
                 break;
 
             default:
-                break; // d/ver, d/cfg 등은 로깅 대상 아님
+                break;
         }
     } catch (e) {
         console.error(`[parse] ${device} ${subtopic}: ${e.message}`);
