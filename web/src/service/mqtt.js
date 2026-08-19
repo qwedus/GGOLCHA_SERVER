@@ -20,31 +20,29 @@ let first_auth_fail = true;
 let pending_ver = null;
 
 export function init_mqtt() {
-    if (mqtt_client) {
-        mqtt_client.end();
-        mqtt_client = null;
-    }
-
+    if (mqtt_client) { mqtt_client.end(); mqtt_client = null; }
     first_auth_fail = true;
-
     if (!localStorage.getItem('server/addr')) {
         localStorage.setItem('server/addr', 'ggolcha.duckdns.org');
     }
+
+    const server_name = localStorage.getItem('server/name') || '';
+    const admin_key = localStorage.getItem('admin/key');
 
     mqtt_client = mqtt.connect({
         protocol: 'wss',
         host: localStorage.getItem('server/addr'),
         port: 443,
-        username: localStorage.getItem('server/name') || '',
-        password: localStorage.getItem('server/key') || '',
+        username: admin_key ? `${server_name}-admin` : server_name,
+        password: admin_key || localStorage.getItem('server/key') || '',
         keepalive: 30
     });
-
     mqtt_client.on('connect', () => {
         update_connection_server(true);
-        mqtt_client.subscribe(`${localStorage.getItem('server/name')}/d/#`);
-        mqtt_client.subscribe(`${localStorage.getItem('server/name')}/ack/#`);
+        mqtt_client.subscribe(`${server_name}/d/#`);
+        mqtt_client.subscribe(`${server_name}/ack/#`);
     });
+    
 
     mqtt_client.on('error', (e) => {
         update_connection_server(false);
@@ -389,12 +387,27 @@ export function init_mqtt() {
     });
 }
 
+const ADMIN_TOPIC_PREFIXES = ['set/', 'cfg/', 'cmd/rbt', 'cmd/rst', 'cmd/del/'];
+
+function is_admin_topic(topic) {
+    return ADMIN_TOPIC_PREFIXES.some((p) => topic === p || topic.startsWith(p));
+}
+
 export function publish(topic, payload, qos) {
+    if (is_admin_topic(topic) && !localStorage.getItem('admin/key')) {
+        ToastEventBus.emit('add', {
+            severity: 'error',
+            summary: 'Admin Access Required',
+            detail: 'You do not have permission to perform this action.',
+            group: 'br',
+            life: 5000
+        });
+        return;
+    }
     if (!mqtt_client || !mqtt_client.connected) {
         ToastEventBus.emit('add', { severity: 'error', summary: 'Server Disconnected', group: 'br', life: 5000 });
         return;
     }
-
     mqtt_client.publish(`${localStorage.getItem('server/name')}/${topic}`, payload, { qos: qos });
 }
 

@@ -1,7 +1,7 @@
 <script setup>
 defineOptions({ name: 'DeviceConfiguration' });
 
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { init_mqtt, publish } from '@/service/mqtt';
 import { connection, config, files, format_size } from '@/service/state';
 
@@ -14,6 +14,35 @@ const confirm = useConfirm();
 // ESP가 실제 구현한 cfg/wifi 토픽(테스트 접속 후 성공해야만 저장되는 안전한 방식) 전용 입력값.
 // 잘못 입력해도 ESP가 먼저 접속 테스트를 해보고 실패하면 기존 WiFi를 그대로 유지함.
 const safeWifi = ref({ ssid: '', pass: '', loading: false });
+
+// [신규] 관리자 키 — 여기 입력된 값이 localStorage의 admin/key와 일치하면 관리자 모드로 승격됨.
+// mosquitto 상에서는 honeycar-admin 계정으로 재접속하게 되고(서비스/mqtt.js에서 처리),
+// 프론트엔드 쓰기 동작(publish 게이트)도 이 값을 기준으로 판단한다.
+const adminKey = ref({ value: '', loading: false });
+const is_admin = computed(() => !!localStorage.getItem('admin/key'));
+
+function save_admin_key() {
+    adminKey.value.loading = true;
+
+    const trimmed = adminKey.value.value.trim();
+    if (trimmed) {
+        localStorage.setItem('admin/key', trimmed);
+    } else {
+        localStorage.removeItem('admin/key');
+    }
+
+    init_mqtt();
+
+    adminKey.value.loading = false;
+    adminKey.value.value = '';
+
+    ToastEventBus.emit('add', {
+        severity: 'success',
+        summary: is_admin.value ? 'Admin Mode Enabled' : 'Admin Mode Disabled',
+        group: 'br',
+        life: 3000
+    });
+}
 
 onMounted(() => {
     config.server.addr.value = localStorage.getItem('server/addr');
@@ -356,7 +385,30 @@ function download_file(name, size, index) {
                     </div>
                 </div>
 
+                <!-- [신규] 관리자 키 카드 — 누구나 볼 수 있음. 여기에 관리자 키를 입력해야
+                     아래의 설정 변경/삭제 카드들이 나타나고 mosquitto에도 honeycar-admin으로 재접속함. -->
                 <div class="card flex flex-col gap-6">
+                    <div class="font-semibold text-xl">Admin</div>
+                    <div class="grid grid-cols-12 gap-2">
+                        <label for="admin-key" class="flex items-center col-span-3">Admin Key</label>
+                        <div class="col-span-9">
+                            <InputGroup>
+                                <InputText id="admin-key" v-model="adminKey.value" type="password" :placeholder="is_admin ? '••••••••' : 'Enter admin key'" />
+                                <Button
+                                    :icon="is_admin ? 'pi pi-sign-out' : 'pi pi-sign-in'"
+                                    :severity="is_admin ? 'danger' : 'primary'"
+                                    class="mr-2 mb-2"
+                                    :loading="adminKey.loading"
+                                    @click="save_admin_key"
+                                />
+                            </InputGroup>
+                        </div>
+                    </div>
+                    <Message v-if="is_admin" size="small" severity="success" variant="simple">Admin mode active — configuration changes are enabled.</Message>
+                    <Message v-else size="small" severity="secondary" variant="simple">Viewer mode — read-only. Enter the admin key to unlock configuration.</Message>
+                </div>
+
+                <div v-if="is_admin" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">Device</div>
                     <div class="grid grid-cols-12 gap-2">
                         <label for="net-ssid" class="flex items-center col-span-3">SSID</label>
@@ -399,7 +451,7 @@ function download_file(name, size, index) {
                 <!-- [신규] B안 — 안전한 WiFi 변경 (기존 SSID/Password 필드와는 별개 경로).
                      ESP가 cfg/wifi 토픽으로 받아 먼저 테스트 접속 후 성공해야만 반영함.
                      실패 시 기존 WiFi를 자동으로 유지하므로 net/ssid, net/passwd + Restart 조합보다 안전함. -->
-                <div class="card flex flex-col gap-6">
+                <div v-if="is_admin" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">WiFi 변경 (안전모드)</div>
                     <span class="text-sm text-surface-500">
                         <span class="pi pi-shield mr-2"></span>
@@ -420,7 +472,7 @@ function download_file(name, size, index) {
                     <Button label="접속 테스트 후 변경" icon="pi pi-wifi" :loading="safeWifi.loading" :disabled="config.disabled" @click="set_safe_wifi" />
                 </div>
 
-                <div class="card flex flex-col gap-2">
+                <div v-if="is_admin" class="card flex flex-col gap-2">
                     <div class="font-semibold text-xl">Inputs</div>
                     <ul class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <li class="flex items-center justify-between cardview">
@@ -436,7 +488,7 @@ function download_file(name, size, index) {
             </div>
 
             <div class="md:w-1/2">
-                <div class="card flex flex-col gap-6">
+                <div v-if="is_admin" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">CAN</div>
                     <div class="grid grid-cols-12 gap-2">
                         <label for="can-en" class="flex items-center col-span-3">Enabled</label>
@@ -473,7 +525,7 @@ function download_file(name, size, index) {
                     </div>
                 </div>
 
-                <div class="card flex flex-col gap-6">
+                <div v-if="is_admin" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">GPS</div>
                     <div class="grid grid-cols-12 gap-2">
                         <label for="gps-en" class="flex items-center col-span-3">Enabled</label>
@@ -492,7 +544,7 @@ function download_file(name, size, index) {
                     </div>
                 </div>
 
-                <div class="card flex flex-col gap-6">
+                <div v-if="is_admin" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">Danger Zone</div>
                     <span><span class="pi pi-info-circle mr-2"></span> Restart the device to apply changes.</span>
                     <div class="flex gap-6">
@@ -510,7 +562,7 @@ function download_file(name, size, index) {
                 <div class="font-semibold text-xl">Data Downloader</div>
                 <div class="flex gap-4 mt-2">
                     <Button id="list" label="Load List" icon="pi pi-list" :fluid="false" class="flex-1 md:flex-none" :loading="files.loading.list" :disabled="files.disabled" @click="list_files" />
-                    <Button label="Delete All" icon="pi pi-eraser" severity="danger" :fluid="false" class="flex-1 md:flex-none" :loading="files.loading.del === -1" :disabled="files.disabled" @click="delete_file('all', -1)" />
+                    <Button v-if="is_admin" label="Delete All" icon="pi pi-eraser" severity="danger" :fluid="false" class="flex-1 md:flex-none" :loading="files.loading.del === -1" :disabled="files.disabled" @click="delete_file('all', -1)" />
                 </div>
                 <DataView :value="files.list" class="mt-2">
                     <template #empty>
@@ -525,7 +577,7 @@ function download_file(name, size, index) {
                                     <div class="text-xs text-gray-500 mt-1">{{ format_size(item.size) }}</div>
                                 </div>
                                 <Button icon="pi pi-download" class="mx-1" text @click="download_file(item.name, item.size, index + 1)" :loading="files.loading.download === index + 1" :disabled="files.disabled" />
-                                <Button icon="pi pi-trash" class="mx-1" text severity="danger" @click="delete_file(item.name, index)" :loading="files.loading.del === index" :disabled="files.disabled" />
+                                <Button v-if="is_admin" icon="pi pi-trash" class="mx-1" text severity="danger" @click="delete_file(item.name, index)" :loading="files.loading.del === index" :disabled="files.disabled" />
                             </div>
                         </div>
                     </template>

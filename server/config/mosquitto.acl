@@ -3,8 +3,8 @@ topic read honeycar/#
 topic write honeycar/cmd/ls
 topic write honeycar/cmd/get/#
 topic write honeycar/cmd/evt
+topic write honeycar/cmd/cfg
 
 user honeycar-admin
 topic read honeycar/#
-topic write honeycar/#pattern read %u/#
-pattern write %u/#
+topic write honeycar/#
