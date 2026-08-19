@@ -8,8 +8,9 @@ import { fmt, digit, format_size } from '@/service/state';
 import { views, units, can_decoder, colors } from '@/service/ui';
 import { init_map, rebuild_hotline, HOTLINE_MODE } from '@/service/map';
 import { plugin_wheel_zoom, plugin_touch_zoom } from '@/service/uplot';
-import { fetch_sessions, hide_session, fetch_session_data } from '@/service/sessions';
-
+import { fetch_sessions, hide_session, fetch_session_data, rename_session } from '@/service/sessions';
+import { useConfirm } from 'primevue/useconfirm';
+import { useToast } from 'primevue/usetoast';
 import L from 'leaflet';
 
 import uPlot from 'uplot';
@@ -53,6 +54,51 @@ const can_stats = ref([]);
 const current_device = localStorage.getItem('server/name');
 const sessions = ref([]);
 const db_page = ref(0);
+const confirm = useConfirm();
+const toast = useToast();
+const editing_session = ref(null);
+const edit_name_value = ref('');
+
+function confirm_delete(s) {
+    confirm.require({
+        message: '이 세션을 목록에서 삭제하시겠습니까? (실제 데이터는 DB에 그대로 남습니다)',
+        header: '세션 삭제',
+        icon: 'pi pi-exclamation-triangle',
+        acceptLabel: '삭제',
+        rejectLabel: '취소',
+        acceptProps: { severity: 'danger' },
+        accept: () => delete_session(s)
+    });
+}
+
+function start_rename(s) {
+    editing_session.value = s.session;
+    edit_name_value.value = s.name || dayjs(s.start).format('YYYY-MM-DD HH:mm:ss');
+}
+
+function cancel_rename() {
+    editing_session.value = null;
+    edit_name_value.value = '';
+}
+
+async function save_rename(s) {
+    const name = edit_name_value.value.trim();
+    if (!name) {
+        cancel_rename();
+        return;
+    }
+
+    try {
+        await rename_session(current_device, s.session, name);
+        s.name = name;
+        toast.add({ severity: 'success', summary: '이름이 변경됐습니다', group: 'br', life: 2000 });
+    } catch (e) {
+        console.error('failed to rename session:', e);
+        toast.add({ severity: 'error', summary: '이름 변경 실패', group: 'br', life: 3000 });
+    } finally {
+        cancel_rename();
+    }
+}
 
 const show = {
     digital: { name: 'DIN', ref: ref(false) },
@@ -636,6 +682,7 @@ function timelapse() {
 </script>
 
 <template>
+    <ConfirmDialog />
     <div class="grid grid-cols-12 gap-8">
         <div class="col-span-full lg:col-span-12">
             <div class="card">
@@ -761,10 +808,22 @@ function timelapse() {
                     </template>
                     <template #list="{ items }">
                         <div class="flex flex-col gap-2">
-                            <div v-for="s in items" :key="s.session" class="flex items-center justify-between py-2 px-2">
-                                <span class="font-semibold cursor-pointer hover:underline" @click="load_session(s)">{{ dayjs(s.start).format('YYYY-MM-DD HH:mm:ss') }}</span>
-                                <Button icon="pi pi-trash" severity="danger" text @click="delete_session(s)" />
-                            </div>
+                            <div v-for="s in items" :key="s.session" class="flex items-center justify-between py-2 px-2 gap-2">
+                                <template v-if="editing_session === s.session">
+                                    <InputText v-model="edit_name_value" size="small" class="flex-1" autofocus @keyup.enter="save_rename(s)" @keyup.esc="cancel_rename" />
+                                    <Button icon="pi pi-check" severity="success" text @click="save_rename(s)" />
+                                    <Button icon="pi pi-times" severity="secondary" text @click="cancel_rename" />
+                                </template>
+                                <template v-else>
+                                    <span class="font-semibold cursor-pointer hover:underline" @click="load_session(s)">
+                                        {{ s.name || dayjs(s.start).format('YYYY-MM-DD HH:mm:ss') }}
+                                    </span>
+                                    <div class="flex items-center gap-1">
+                                        <Button icon="pi pi-pencil" severity="secondary" text @click="start_rename(s)" />
+                                         <Button icon="pi pi-trash" severity="danger" text @click="confirm_delete(s)" />
+                                    </div>
+                                </template>
+                             </div>
                         </div>
                     </template>
                 </DataView>
