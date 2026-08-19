@@ -50,6 +50,7 @@ const container = ref(null);
 
 let events = ref([]);
 const can_stats = ref([]);
+const is_admin = ref(!!localStorage.getItem('admin/key'));
 
 const current_device = localStorage.getItem('server/name');
 const sessions = ref([]);
@@ -818,7 +819,7 @@ function timelapse() {
                                     <span class="font-semibold cursor-pointer hover:underline" @click="load_session(s)">
                                         {{ s.name || dayjs(s.start).format('YYYY-MM-DD HH:mm:ss') }}
                                     </span>
-                                    <div class="flex items-center gap-1">
+                                    <div class="flex items-center gap-1" v-if="is_admin">
                                         <Button icon="pi pi-pencil" severity="secondary" text @click="start_rename(s)" />
                                          <Button icon="pi pi-trash" severity="danger" text @click="confirm_delete(s)" />
                                     </div>
