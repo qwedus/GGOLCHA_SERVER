@@ -1,2 +1,10 @@
-pattern read %u/#
+user honeycar
+topic read honeycar/#
+topic write honeycar/cmd/ls
+topic write honeycar/cmd/get/#
+topic write honeycar/cmd/evt
+
+user honeycar-admin
+topic read honeycar/#
+topic write honeycar/#pattern read %u/#
 pattern write %u/#
