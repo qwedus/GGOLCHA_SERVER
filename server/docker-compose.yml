@@ -162,6 +162,8 @@ services:
       - INFLUX_TOKEN=${INFLUX_TOKEN}
       - INFLUX_ORG=ggolcha
       - INFLUX_BUCKET=telemetry
+      - VIEWER_KEY=${HONEYCAR_MQTT_KEY}
+      - ADMIN_KEY=${ADMIN_MQTT_KEY}
     networks:
       - traefik
     restart: unless-stopped
