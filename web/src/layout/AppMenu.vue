@@ -25,17 +25,18 @@ const model = computed(() => [
             },
             {
                 label: 'Documentation',
-                icon: 'pi pi-fw pi-book',
+              
+  icon: 'pi pi-fw pi-book',
                 url: '/docs',
                 target: '_blank'
             },
-            {
-                label: 'GitHub',
-                icon: 'pi pi-fw pi-github',
-                url: 'https://github.com/luftaquila/monolith',
-                target: '_blank'
-            },
-            {
+	    {
+   		label: 'GitHub',
+   		icon: 'pi pi-fw pi-github',
+    		url: 'https://github.com/qwedus/GGOLCHA_SERVER',
+    		target: '_blank'
+	    },            
+	    {
                 label: 'DNF Forum',
                 icon: 'pi pi-fw pi-link',
                 url: 'https://dnf.luftaquila.io',
