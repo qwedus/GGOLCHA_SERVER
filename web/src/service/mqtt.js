@@ -14,20 +14,35 @@ import { update_telemetry, update_can, update_vehicle } from '@/service/telemetr
 import { connection, config, times, files, format_size } from '@/service/state';
 import { parse_cfg, parse_log, parse_logbuf, to_uint } from '@/service/protocol';
 import { update_connection_server, update_connection_device } from '@/service/topbar';
+import { has_valid_admin_key, get_active_admin_key } from '@/service/admin';
 
 let mqtt_client = null;
 let first_auth_fail = true;
 let pending_ver = null;
 
+// 관리자 키로만 발행 가능한 토픽들. has_valid_admin_key()가 false면(만료 포함)
+// 여기 걸리는 토픽은 실제 mqtt publish 자체를 브라우저 단에서 막습니다.
+// mosquitto ACL이 최종 방어선이고, 이건 그 앞단의 UX용 게이트입니다.
+const ADMIN_TOPIC_PREFIXES = ['set/', 'cfg/', 'cmd/rbt', 'cmd/rst', 'cmd/del/'];
+
+function is_admin_topic(topic) {
+    return ADMIN_TOPIC_PREFIXES.some((p) => topic === p || topic.startsWith(p));
+}
+
 export function init_mqtt() {
-    if (mqtt_client) { mqtt_client.end(); mqtt_client = null; }
+    if (mqtt_client) {
+        mqtt_client.end();
+        mqtt_client = null;
+    }
+
     first_auth_fail = true;
+
     if (!localStorage.getItem('server/addr')) {
         localStorage.setItem('server/addr', 'ggolcha.duckdns.org');
     }
 
     const server_name = localStorage.getItem('server/name') || '';
-    const admin_key = localStorage.getItem('admin/key');
+    const admin_key = get_active_admin_key();
 
     mqtt_client = mqtt.connect({
         protocol: 'wss',
@@ -37,12 +52,12 @@ export function init_mqtt() {
         password: admin_key || localStorage.getItem('server/key') || '',
         keepalive: 30
     });
+
     mqtt_client.on('connect', () => {
         update_connection_server(true);
         mqtt_client.subscribe(`${server_name}/d/#`);
         mqtt_client.subscribe(`${server_name}/ack/#`);
     });
-    
 
     mqtt_client.on('error', (e) => {
         update_connection_server(false);
@@ -387,14 +402,8 @@ export function init_mqtt() {
     });
 }
 
-const ADMIN_TOPIC_PREFIXES = ['set/', 'cfg/', 'cmd/rbt', 'cmd/rst', 'cmd/del/'];
-
-function is_admin_topic(topic) {
-    return ADMIN_TOPIC_PREFIXES.some((p) => topic === p || topic.startsWith(p));
-}
-
 export function publish(topic, payload, qos) {
-    if (is_admin_topic(topic) && !localStorage.getItem('admin/key')) {
+    if (is_admin_topic(topic) && !has_valid_admin_key()) {
         ToastEventBus.emit('add', {
             severity: 'error',
             summary: 'Admin Access Required',
@@ -404,10 +413,12 @@ export function publish(topic, payload, qos) {
         });
         return;
     }
+
     if (!mqtt_client || !mqtt_client.connected) {
         ToastEventBus.emit('add', { severity: 'error', summary: 'Server Disconnected', group: 'br', life: 5000 });
         return;
     }
+
     mqtt_client.publish(`${localStorage.getItem('server/name')}/${topic}`, payload, { qos: qos });
 }
 
