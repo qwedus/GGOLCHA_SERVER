@@ -26,9 +26,10 @@ const model = computed(() => [
             {
                 label: 'Documentation',
               
-  icon: 'pi pi-fw pi-book',
+                icon: 'pi pi-fw pi-book',
                 url: '/docs',
                 target: '_blank'
+                visible: false
             },
 	    {
    		label: 'GitHub',
