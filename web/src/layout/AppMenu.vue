@@ -28,7 +28,7 @@ const model = computed(() => [
               
                 icon: 'pi pi-fw pi-book',
                 url: '/docs',
-                target: '_blank'
+                target: '_blank',
                 visible: false
             },
 	    {
