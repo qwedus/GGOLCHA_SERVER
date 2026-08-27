@@ -1,7 +1,3 @@
-const SHOW_UNITS = false;
-const SHOW_DIGITAL = false;
-const SHOW_ANALOG = false;
-const SHOW_CAN = false;
 <script setup>
 import { ref, reactive, computed } from 'vue';
 import { views, units, defaults } from '@/service/ui';
@@ -11,6 +7,12 @@ import { useConfirm } from 'primevue/useconfirm';
 import ToastEventBus from 'primevue/toasteventbus';
 
 const confirm = useConfirm();
+
+// 지금 안 쓰는 섹션들 — 나중에 필요해지면 true로만 바꾸면 됨
+const SHOW_UNITS = false;
+const SHOW_DIGITAL = false;
+const SHOW_ANALOG = false;
+const SHOW_CAN = false;
 
 const new_unit = ref({ name: '', unit: '' });
 
@@ -358,9 +360,8 @@ function export_cfg() {
                     </ul>
                 </div>
 
-                 <div class="card flex flex-col gap-4">
-+                <div class="card flex flex-col gap-4" v-if="SHOW_UNITS">
-                     <div class="font-semibold text-xl">Units</div>
+                <div class="card flex flex-col gap-4" v-if="SHOW_UNITS">
+                    <div class="font-semibold text-xl">Units</div>
                     <InputGroup class="mt-2">
                         <InputText id="new_name" v-model="new_unit.name" placeholder="Name" />
                         <InputText id="new_unit" v-model="new_unit.unit" placeholder="Unit" />
@@ -371,8 +372,7 @@ function export_cfg() {
                     </div>
                 </div>
 
-                <div class="card flex flex-col gap-4">
-                    <div class="card flex flex-col gap-4" v-if="SHOW_DIGITAL">
+                <div class="card flex flex-col gap-4" v-if="SHOW_DIGITAL">
                     <div class="font-semibold text-xl mb-2">Digital</div>
                     <DataView :value="Object.entries(views.digital.ch)" layout="grid">
                         <template #grid="{ items }">
@@ -393,8 +393,7 @@ function export_cfg() {
             </div>
 
             <div class="md:w-1/2">
-                <div class="card flex flex-col gap-4">
-                    <div class="card flex flex-col gap-4" v-if="SHOW_ANALOG">
+                <div class="card flex flex-col gap-4" v-if="SHOW_ANALOG">
                     <div class="font-semibold text-xl mb-2">Analog</div>
                     <DataView :value="Object.entries(analogs)" layout="grid">
                         <template #grid="{ items }">
@@ -431,8 +430,7 @@ function export_cfg() {
                     </DataView>
                 </div>
 
-                <div class="card flex flex-col gap-4">
-                     <div class="card flex flex-col gap-4" v-if="SHOW_CAN">
+                <div class="card flex flex-col gap-4" v-if="SHOW_CAN">
                     <div class="font-semibold text-xl mb-2">CAN</div>
                     <Button label="Add Message Decoder" icon="pi pi-plus" @click="can_add" />
                     <DataView v-if="can_views.length" :value="can_views">
