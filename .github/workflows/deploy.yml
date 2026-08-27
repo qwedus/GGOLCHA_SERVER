@@ -18,8 +18,15 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/GGOLCHA_SERVER
+            OLD_REV=$(git rev-parse HEAD)
             git pull origin main
+            NEW_REV=$(git rev-parse HEAD)
+
             cd web && npm install && npm run build
             cd ../server && docker compose up -d --build
             docker compose restart nginx
-            docker compose restart mosquitto
+
+            if git -C ~/GGOLCHA_SERVER diff --name-only "$OLD_REV" "$NEW_REV" -- server/config/mosquitto.conf server/config/mosquitto.acl | grep -q .; then
+              echo "mosquitto config changed — restarting mosquitto"
+              docker compose restart mosquitto
+            fi
