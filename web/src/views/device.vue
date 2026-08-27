@@ -1,3 +1,6 @@
+const SHOW_DEVICE_SECTION = false;
+const SHOW_CAN_SECTION = false;
+const SHOW_GPS_SECTION = false;
 <script setup>
 defineOptions({ name: 'DeviceConfiguration' });
 
@@ -408,6 +411,7 @@ function download_file(name, size, index) {
                 </div>
 
                 <div v-if="is_admin" class="card flex flex-col gap-6">
+                    <div v-if="is_admin && SHOW_DEVICE_SECTION" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">Device</div>
                     <div class="grid grid-cols-12 gap-2">
                         <label for="net-ssid" class="flex items-center col-span-3">SSID</label>
@@ -488,6 +492,7 @@ function download_file(name, size, index) {
 
             <div class="md:w-1/2">
                 <div v-if="is_admin" class="card flex flex-col gap-6">
+                    <div v-if="is_admin && SHOW_CAN_SECTION" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">CAN</div>
                     <div class="grid grid-cols-12 gap-2">
                         <label for="can-en" class="flex items-center col-span-3">Enabled</label>
@@ -525,6 +530,7 @@ function download_file(name, size, index) {
                 </div>
 
                 <div v-if="is_admin" class="card flex flex-col gap-6">
+                    <div v-if="is_admin && SHOW_GPS_SECTION" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">GPS</div>
                     <div class="grid grid-cols-12 gap-2">
                         <label for="gps-en" class="flex items-center col-span-3">Enabled</label>
