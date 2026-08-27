@@ -354,7 +354,7 @@ function export_cfg() {
                     </ul>
                 </div>
 
-                <div class="card flex flex-col gap-4">
+                <div class="card flex flex-col gap-4" v-if="views.analog.display.telemetry || views.can.display.telemetry">
                     <div class="font-semibold text-xl">Units</div>
                     <InputGroup class="mt-2">
                         <InputText id="new_name" v-model="new_unit.name" placeholder="Name" />
@@ -367,6 +367,7 @@ function export_cfg() {
                 </div>
 
                 <div class="card flex flex-col gap-4">
+                    <div class="card flex flex-col gap-4" v-if="views.digital.display.telemetry">
                     <div class="font-semibold text-xl mb-2">Digital</div>
                     <DataView :value="Object.entries(views.digital.ch)" layout="grid">
                         <template #grid="{ items }">
@@ -388,6 +389,7 @@ function export_cfg() {
 
             <div class="md:w-1/2">
                 <div class="card flex flex-col gap-4">
+                    <div class="card flex flex-col gap-4" v-if="views.analog.display.telemetry">
                     <div class="font-semibold text-xl mb-2">Analog</div>
                     <DataView :value="Object.entries(analogs)" layout="grid">
                         <template #grid="{ items }">
@@ -425,6 +427,7 @@ function export_cfg() {
                 </div>
 
                 <div class="card flex flex-col gap-4">
+                    <div class="card flex flex-col gap-4" v-if="views.can.display.telemetry">
                     <div class="font-semibold text-xl mb-2">CAN</div>
                     <Button label="Add Message Decoder" icon="pi pi-plus" @click="can_add" />
                     <DataView v-if="can_views.length" :value="can_views">
