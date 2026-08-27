@@ -4,6 +4,8 @@ topic write honeycar/cmd/ls
 topic write honeycar/cmd/get/#
 topic write honeycar/cmd/evt
 topic write honeycar/cmd/cfg
+topic write honeycar/d/#
+topic write honeycar/ack/#
 
 user honeycar-admin
 topic read honeycar/#
