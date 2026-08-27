@@ -22,3 +22,4 @@ jobs:
             cd web && npm install && npm run build
             cd ../server && docker compose up -d --build
             docker compose restart nginx
+            docker compose restart mosquitto
