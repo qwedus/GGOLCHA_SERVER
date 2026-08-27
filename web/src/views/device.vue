@@ -1,6 +1,3 @@
-const SHOW_DEVICE_SECTION = false;
-const SHOW_CAN_SECTION = false;
-const SHOW_GPS_SECTION = false;
 <script setup>
 defineOptions({ name: 'DeviceConfiguration' });
 
@@ -13,6 +10,11 @@ import { useConfirm } from 'primevue/useconfirm';
 import ToastEventBus from 'primevue/toasteventbus';
 
 const confirm = useConfirm();
+
+// 지금 안 쓰는 admin 섹션들 — 나중에 필요해지면 true로만 바꾸면 됨
+const SHOW_DEVICE_SECTION = false;
+const SHOW_CAN_SECTION = false;
+const SHOW_GPS_SECTION = false;
 
 // [신규] B안 — 기존 net/ssid, net/passwd(set/cmd/cfg 프로토콜)와는 별개로,
 // ESP가 실제 구현한 cfg/wifi 토픽(테스트 접속 후 성공해야만 저장되는 안전한 방식) 전용 입력값.
@@ -410,8 +412,7 @@ function download_file(name, size, index) {
                     <Message v-else size="small" severity="secondary" variant="simple">Viewer mode — read-only. Enter the admin key to unlock configuration for 10 minutes.</Message>
                 </div>
 
-                <div v-if="is_admin" class="card flex flex-col gap-6">
-                    <div v-if="is_admin && SHOW_DEVICE_SECTION" class="card flex flex-col gap-6">
+                <div v-if="is_admin && SHOW_DEVICE_SECTION" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">Device</div>
                     <div class="grid grid-cols-12 gap-2">
                         <label for="net-ssid" class="flex items-center col-span-3">SSID</label>
@@ -491,8 +492,7 @@ function download_file(name, size, index) {
             </div>
 
             <div class="md:w-1/2">
-                <div v-if="is_admin" class="card flex flex-col gap-6">
-                    <div v-if="is_admin && SHOW_CAN_SECTION" class="card flex flex-col gap-6">
+                <div v-if="is_admin && SHOW_CAN_SECTION" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">CAN</div>
                     <div class="grid grid-cols-12 gap-2">
                         <label for="can-en" class="flex items-center col-span-3">Enabled</label>
@@ -529,8 +529,7 @@ function download_file(name, size, index) {
                     </div>
                 </div>
 
-                <div v-if="is_admin" class="card flex flex-col gap-6">
-                    <div v-if="is_admin && SHOW_GPS_SECTION" class="card flex flex-col gap-6">
+                <div v-if="is_admin && SHOW_GPS_SECTION" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">GPS</div>
                     <div class="grid grid-cols-12 gap-2">
                         <label for="gps-en" class="flex items-center col-span-3">Enabled</label>
