@@ -110,8 +110,8 @@ async function save_rename(s) {
 }
 
 const show = {
-    digital: { name: 'DIN', ref: ref(false) },
-    analog: { name: 'AIN', ref: ref(false) },
+    // digital/analog(DIN/AIN)는 GGOLCHA에서 안 쓰기로 해서 토글 버튼만 숨김.
+    // 시리즈/파싱 코드는 그대로 남아있음(값이 들어와도 켤 수 있는 버튼이 없을 뿐).
     gyro: { name: 'Gyro', ref: ref(false) },
     gps: { name: 'GPS', ref: ref(false) },
     vehicle: { name: 'Vehicle', ref: ref(false) },
