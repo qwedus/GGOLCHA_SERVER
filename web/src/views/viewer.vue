@@ -63,7 +63,7 @@ const edit_name_value = ref('');
 
 // VEHICLE 채널 목록/개수를 한 곳에서 계산해서 인덱스 계산에 재사용
 // (chart 시리즈는 fixed 채널(0~19) 뒤에 VEHICLE 채널, 그 뒤에 동적 CAN 채널 순서로 배치됨)
-const VEHICLE_START = 19; // 마지막 고정 채널(SPD)의 인덱스
+const VEHICLE_START = 7; // 마지막 고정 채널(SPD/GPS speed)의 인덱스. DIN/AIN 제거 후 Ax,Ay,Az,Gx,Gy,Gz,SPD = 1~7
 const VEHICLE_KEYS = Object.keys(views.vehicle.ch);
 const CAN_START = VEHICLE_START + VEHICLE_KEYS.length;
 
@@ -250,17 +250,7 @@ function init_chart() {
         chart.value.destroy();
     }
 
-    const scales = {
-        digital: {
-            range: (u, d_min, d_max) => {
-                if (d_min === null && d_max === null) {
-                    return [null, null];
-                } else {
-                    return [0, 1];
-                }
-            }
-        }
-    };
+    const scales = {};
 
     const axes = [
         {
@@ -268,15 +258,6 @@ function init_chart() {
             values: (u, v) => v.map((x) => dayjs(x * 1000).format('HH:mm:ss')),
             stroke: () => (dark.value ? '#fff' : '#000'),
             ticks: { stroke: () => (dark.value ? '#24282b' : '#ededed') },
-            grid: { stroke: () => (dark.value ? '#24282b' : '#ededed') }
-        },
-        {
-            scale: 'digital',
-            size: 20,
-            values: (u, v) => v.map((x) => (x ? 'HI' : 'LO')),
-            splits: () => [0, 1],
-            stroke: () => (dark.value ? '#fff' : '#000'),
-            ticks: { show: false },
             grid: { stroke: () => (dark.value ? '#24282b' : '#ededed') }
         }
     ];
@@ -329,25 +310,13 @@ function init_chart() {
 
     const series = [
         { value: fmt.time },
-        { label: views.digital.ch.din1.name, value: fmt.digital, scale: 'digital', spanGaps: true, show: false, stroke: colors[0] },
-        { label: views.digital.ch.din2.name, value: fmt.digital, scale: 'digital', spanGaps: true, show: false, stroke: colors[1] },
-        { label: views.digital.ch.din3.name, value: fmt.digital, scale: 'digital', spanGaps: true, show: false, stroke: colors[2] },
-        { label: views.digital.ch.din4.name, value: fmt.digital, scale: 'digital', spanGaps: true, show: false, stroke: colors[3] },
-        { label: views.analog.ch.ain1.name, value: fmt[views.analog.ch.ain1.unit], scale: views.analog.ch.ain1.unit || 'Volt', spanGaps: true, show: false, stroke: colors[4] },
-        { label: views.analog.ch.ain2.name, value: fmt[views.analog.ch.ain2.unit], scale: views.analog.ch.ain2.unit || 'Volt', spanGaps: true, show: false, stroke: colors[5] },
-        { label: views.analog.ch.ain3.name, value: fmt[views.analog.ch.ain3.unit], scale: views.analog.ch.ain3.unit || 'Volt', spanGaps: true, show: false, stroke: colors[6] },
-        { label: views.analog.ch.ain4.name, value: fmt[views.analog.ch.ain4.unit], scale: views.analog.ch.ain4.unit || 'Volt', spanGaps: true, show: false, stroke: colors[7] },
-        { label: views.analog.ch.ain5.name, value: fmt[views.analog.ch.ain5.unit], scale: views.analog.ch.ain5.unit || 'Volt', spanGaps: true, show: false, stroke: colors[8] },
-        { label: views.analog.ch.ain6.name, value: fmt[views.analog.ch.ain6.unit], scale: views.analog.ch.ain6.unit || 'Volt', spanGaps: true, show: false, stroke: colors[9] },
-        { label: views.analog.ch.volt.name, value: fmt.Volt, scale: 'Volt', spanGaps: true, show: false, stroke: colors[10] },
-        { label: views.analog.ch.temp.name, value: fmt.Temperature, scale: 'Temperature', spanGaps: true, show: false, stroke: colors[11] },
-        { label: 'Ax', value: fmt.Acceleration, scale: 'Acceleration', spanGaps: true, show: false, stroke: colors[12] },
-        { label: 'Ay', value: fmt.Acceleration, scale: 'Acceleration', spanGaps: true, show: false, stroke: colors[13] },
-        { label: 'Az', value: fmt.Acceleration, scale: 'Acceleration', spanGaps: true, show: false, stroke: colors[14] },
-        { label: 'Gx', value: fmt['Angular Velocity'], scale: 'Angular Velocity', spanGaps: true, show: false, stroke: colors[15] },
-        { label: 'Gy', value: fmt['Angular Velocity'], scale: 'Angular Velocity', spanGaps: true, show: false, stroke: colors[16] },
-        { label: 'Gz', value: fmt['Angular Velocity'], scale: 'Angular Velocity', spanGaps: true, show: false, stroke: colors[17] },
-        { label: 'SPD', value: fmt.Speed, scale: 'Speed', spanGaps: true, show: false, stroke: colors[18] }
+        { label: 'Ax', value: fmt.Acceleration, scale: 'Acceleration', spanGaps: true, show: false, stroke: colors[0] },
+        { label: 'Ay', value: fmt.Acceleration, scale: 'Acceleration', spanGaps: true, show: false, stroke: colors[1] },
+        { label: 'Az', value: fmt.Acceleration, scale: 'Acceleration', spanGaps: true, show: false, stroke: colors[2] },
+        { label: 'Gx', value: fmt['Angular Velocity'], scale: 'Angular Velocity', spanGaps: true, show: false, stroke: colors[3] },
+        { label: 'Gy', value: fmt['Angular Velocity'], scale: 'Angular Velocity', spanGaps: true, show: false, stroke: colors[4] },
+        { label: 'Gz', value: fmt['Angular Velocity'], scale: 'Angular Velocity', spanGaps: true, show: false, stroke: colors[5] },
+        { label: 'SPD', value: fmt.Speed, scale: 'Speed', spanGaps: true, show: false, stroke: colors[6] }
     ];
 
     // VEHICLE 채널 (조향 엔코더 + CAN 유래 모터/배터리 값) — fixed 채널(index 19) 뒤에 고정 블록으로 추가
@@ -417,47 +386,17 @@ function set_data(raw) {
 
     for (const data of raw) {
         switch (data.type) {
-            case 'DIGITAL':
-                dataset[0].push(bt + data.timestamp / 1000);
-                dataset[1].push(data.digital.din1);
-                dataset[2].push(data.digital.din2);
-                dataset[3].push(data.digital.din3);
-                dataset[4].push(data.digital.din4);
-
-                for (let i = 5; i < dataset.length; i++) {
-                    dataset[i].push(null);
-                }
-                break;
-
-            case 'ANALOG':
-                dataset[0].push(bt + data.timestamp / 1000);
-                dataset[5].push(convert.adc_to_v(data.analog.ain1) * views.analog.ch.ain1.multiplier * (views.analog.ch.ain1.divider ? 0.5 : 1));
-                dataset[6].push(convert.adc_to_v(data.analog.ain2) * views.analog.ch.ain2.multiplier * (views.analog.ch.ain2.divider ? 0.5 : 1));
-                dataset[7].push(convert.adc_to_v(data.analog.ain3) * views.analog.ch.ain3.multiplier * (views.analog.ch.ain3.divider ? 0.5 : 1));
-                dataset[8].push(convert.adc_to_v(data.analog.ain4) * views.analog.ch.ain4.multiplier * (views.analog.ch.ain4.divider ? 0.5 : 1));
-                dataset[9].push(convert.adc_to_v(data.analog.ain5) * views.analog.ch.ain5.multiplier);
-                dataset[10].push(convert.adc_to_v(data.analog.ain6) * views.analog.ch.ain6.multiplier);
-                dataset[11].push(convert.adc_to_v(data.analog.voltage) * views.analog.ch.volt.multiplier);
-                dataset[12].push(data.analog.temperature * views.analog.ch.temp.multiplier);
-
-                for (let i = 1; i < dataset.length; i++) {
-                    if (i < 5 || i > 12) {
-                        dataset[i].push(null);
-                    }
-                }
-                break;
-
             case 'GYROSCOPE':
                 dataset[0].push(bt + data.timestamp / 1000);
-                dataset[13].push(convert.accel_to_g(data.gyro.accel_x));
-                dataset[14].push(convert.accel_to_g(data.gyro.accel_y));
-                dataset[15].push(convert.accel_to_g(data.gyro.accel_z));
-                dataset[16].push(convert.gyro_to_dps(data.gyro.gyro_x));
-                dataset[17].push(convert.gyro_to_dps(data.gyro.gyro_y));
-                dataset[18].push(convert.gyro_to_dps(data.gyro.gyro_z));
+                dataset[1].push(convert.accel_to_g(data.gyro.accel_x));
+                dataset[2].push(convert.accel_to_g(data.gyro.accel_y));
+                dataset[3].push(convert.accel_to_g(data.gyro.accel_z));
+                dataset[4].push(convert.gyro_to_dps(data.gyro.gyro_x));
+                dataset[5].push(convert.gyro_to_dps(data.gyro.gyro_y));
+                dataset[6].push(convert.gyro_to_dps(data.gyro.gyro_z));
 
                 for (let i = 1; i < dataset.length; i++) {
-                    if (i < 13 || i > 18) {
+                    if (i < 1 || i > 6) {
                         dataset[i].push(null);
                     }
                 }
@@ -465,10 +404,10 @@ function set_data(raw) {
 
             case 'GPS':
                 dataset[0].push(bt + data.timestamp / 1000);
-                dataset[19].push(data.gps.speed);
+                dataset[7].push(data.gps.speed);
 
                 for (let i = 1; i < dataset.length; i++) {
-                    if (i !== 19) {
+                    if (i !== 7) {
                         dataset[i].push(null);
                     }
                 }
@@ -595,23 +534,13 @@ function set_data(raw) {
 
 function toggle_axis(key) {
     switch (key) {
-        case 'digital':
-            for (let i = 1; i <= 4; i++) {
-                chart.value.setSeries(i, { show: show[key].ref });
-            }
-            break;
-        case 'analog':
-            for (let i = 5; i <= 12; i++) {
-                chart.value.setSeries(i, { show: show[key].ref });
-            }
-            break;
         case 'gyro':
-            for (let i = 13; i <= 18; i++) {
+            for (let i = 1; i <= 6; i++) {
                 chart.value.setSeries(i, { show: show[key].ref });
             }
             break;
         case 'gps':
-            chart.value.setSeries(19, { show: show[key].ref });
+            chart.value.setSeries(7, { show: show[key].ref });
             break;
         case 'vehicle':
             for (let i = VEHICLE_START + 1; i <= CAN_START; i++) {
