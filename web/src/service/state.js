@@ -74,7 +74,7 @@ export const state = reactive([
     { name: 'MQTT', text: 'UNKNOWN', status: 'secondary', hidden: false },
     { name: 'CAN', text: 'UNKNOWN', status: 'secondary', hidden: false },
     { name: 'GPS', text: 'UNKNOWN', status: 'secondary', hidden: false },
-    { name: 'ANALOG', text: 'UNKNOWN', status: 'secondary', hidden: false },
+    { name: 'Steering', text: 'UNKNOWN', status: 'secondary', hidden: false },
     { name: 'DIGITAL', text: 'UNKNOWN', status: 'secondary', hidden: true }, // 기본 숨김
     { name: 'GYRO', text: 'UNKNOWN', status: 'secondary', hidden: false }
 ]);
