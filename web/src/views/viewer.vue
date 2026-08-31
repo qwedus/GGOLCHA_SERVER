@@ -61,6 +61,12 @@ const toast = useToast();
 const editing_session = ref(null);
 const edit_name_value = ref('');
 
+// VEHICLE 채널 목록/개수를 한 곳에서 계산해서 인덱스 계산에 재사용
+// (chart 시리즈는 fixed 채널(0~19) 뒤에 VEHICLE 채널, 그 뒤에 동적 CAN 채널 순서로 배치됨)
+const VEHICLE_START = 19; // 마지막 고정 채널(SPD)의 인덱스
+const VEHICLE_KEYS = Object.keys(views.vehicle.ch);
+const CAN_START = VEHICLE_START + VEHICLE_KEYS.length;
+
 function confirm_delete(s) {
     confirm.require({
         message: '이 세션을 목록에서 삭제하시겠습니까? (실제 데이터는 DB에 그대로 남습니다)',
@@ -108,6 +114,7 @@ const show = {
     analog: { name: 'AIN', ref: ref(false) },
     gyro: { name: 'Gyro', ref: ref(false) },
     gps: { name: 'GPS', ref: ref(false) },
+    vehicle: { name: 'Vehicle', ref: ref(false) },
     can: { name: 'CAN', ref: ref(false) }
 };
 
@@ -343,6 +350,18 @@ function init_chart() {
         { label: 'SPD', value: fmt.Speed, scale: 'Speed', spanGaps: true, show: false, stroke: colors[18] }
     ];
 
+    // VEHICLE 채널 (조향 엔코더 + CAN 유래 모터/배터리 값) — fixed 채널(index 19) 뒤에 고정 블록으로 추가
+    for (const [key, ch] of Object.entries(views.vehicle.ch)) {
+        series.push({
+            label: ch.name,
+            value: fmt[ch.unit],
+            scale: ch.unit,
+            spanGaps: true,
+            show: false,
+            stroke: colors[series.length - 1]
+        });
+    }
+
     for (const [k, o] of Object.entries(can_decoder)) {
         for (const x of o) {
             series.push({
@@ -458,6 +477,20 @@ function set_data(raw) {
                 path_history.push(data);
                 break;
 
+            case 'VEHICLE':
+                dataset[0].push(bt + data.timestamp / 1000);
+
+                VEHICLE_KEYS.forEach((key, i) => {
+                    dataset[VEHICLE_START + 1 + i].push(data.vehicle[key]);
+                });
+
+                for (let i = 1; i < dataset.length; i++) {
+                    if (i <= VEHICLE_START || i > CAN_START) {
+                        dataset[i].push(null);
+                    }
+                }
+                break;
+
             case 'CAN':
                 if (!can_map[data.can.id]) {
                     can_map[data.can.id] = { id: data.can.id, extended: data.can.extended, count: 0, prev_ts: data.timestamp, interval_sum: 0, len: data.can.len, latest_data: data.can.data };
@@ -467,8 +500,6 @@ function set_data(raw) {
                 }
                 can_map[data.can.id].count++;
                 can_map[data.can.id].latest_data = data.can.data;
-
-                const CAN_START = 19;
 
                 if (can_decoder[data.can.id]) {
                     const exist = [];
@@ -582,8 +613,13 @@ function toggle_axis(key) {
         case 'gps':
             chart.value.setSeries(19, { show: show[key].ref });
             break;
+        case 'vehicle':
+            for (let i = VEHICLE_START + 1; i <= CAN_START; i++) {
+                chart.value.setSeries(i, { show: show[key].ref });
+            }
+            break;
         case 'can':
-            for (let i = 20; i < chart.value.series.length; i++) {
+            for (let i = CAN_START + 1; i < chart.value.series.length; i++) {
                 chart.value.setSeries(i, { show: show[key].ref });
             }
             break;
@@ -630,6 +666,9 @@ function serialize_log(log) {
             break;
         case 'GPS':
             Object.assign(obj, log.gps);
+            break;
+        case 'VEHICLE':
+            Object.assign(obj, log.vehicle);
             break;
         case 'CAN':
             obj.id = log.can.id;
