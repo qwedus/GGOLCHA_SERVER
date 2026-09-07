@@ -16,7 +16,7 @@ static EventGroupHandle_t wifi_evt;
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
   if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-    esp_wifi_connect();
+    if (strlen(storage.wifi.ssid) > 0) esp_wifi_connect();
   }
 
   else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
@@ -25,7 +25,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
       snprintf(buf, sizeof(buf), "STA_LOST:%02X", ((wifi_event_sta_disconnected_t *)event_data)->reason);
       ERROR_SYSLOG(&logbuf.run, WIFI, buf, buf);
     }
-    esp_wifi_connect();
+    if (strlen(storage.wifi.ssid) > 0) esp_wifi_connect();  // 계속 재시도는 유지 (AP는 항상 열려있으니 무해함)
   }
 
   else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
@@ -34,6 +34,15 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 
     if (mqtt != NULL && IS_ERROR(&logbuf.run, MQTT)) {
       esp_mqtt_client_reconnect(mqtt);
+    }
+
+    // SNTP는 최초 1회만 초기화
+    static bool sntp_started = false;
+    if (!sntp_started) {
+      esp_sntp_config_t sntp = ESP_NETIF_SNTP_DEFAULT_CONFIG("time.google.com");
+      sntp.sync_cb           = sntp_sync_callback;
+      esp_netif_sntp_init(&sntp);
+      sntp_started = true;
     }
 
     SYSLOG("WIFI_CONN");
