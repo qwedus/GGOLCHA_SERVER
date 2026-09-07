@@ -100,33 +100,15 @@ bool network_init(void) {
     return false;
   }
 
-  // no SSID or proper password set, init AP mode
-  if (strlen(storage.wifi.ssid) == 0 || strlen(storage.wifi.passwd) < 8) {
-    webserver();
-    return false;
-  }
-
+  esp_netif_create_default_wifi_ap();
   esp_netif_create_default_wifi_sta();
 
   wifi_init_config_t wifi_cfg = WIFI_INIT_CONFIG_DEFAULT();
-
   if (esp_wifi_init(&wifi_cfg) != ESP_OK) {
     ERROR_SYSLOG(&init, WIFI, "init failure", "WIFI_INIT_FAIL");
     return false;
   }
 
-  wifi_config_t wifi = { 0 };
-  snprintf((char *)wifi.sta.ssid, sizeof(wifi.sta.ssid), "%s", storage.wifi.ssid);
-  snprintf((char *)wifi.sta.password, sizeof(wifi.sta.password), "%s", storage.wifi.passwd);
-  wifi.sta.scan_method        = WIFI_FAST_SCAN;
-  wifi.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-
-  if (esp_wifi_set_mode(WIFI_MODE_STA) != ESP_OK || esp_wifi_set_config(WIFI_IF_STA, &wifi) != ESP_OK) {
-    ERROR_SYSLOG(&init, WIFI, "STA config failure", "STA_CFG_FAIL");
-    return false;
-  }
-
-  // start Wi-Fi connection
   wifi_evt = xEventGroupCreate();
 
   esp_event_handler_instance_t instance_any_id;
@@ -134,29 +116,43 @@ bool network_init(void) {
   esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, &instance_any_id);
   esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, &instance_got_ip);
 
+  // ---- AP: 상시 on. SSID/PW 저장 여부와 무관하게 항상 켠다 ----
+  wifi_config_t ap = {
+    .ap = {
+      .password       = "monolith",
+      .max_connection = 4,
+      .authmode       = WIFI_AUTH_WPA2_PSK,
+    },
+  };
+  snprintf((char *)ap.ap.ssid, sizeof(ap.ap.ssid), "Monolith v2 %02X%02X%02X",
+    storage.wifi.mac[3], storage.wifi.mac[4], storage.wifi.mac[5]);
+
+  esp_wifi_set_mode(WIFI_MODE_APSTA);
+  esp_wifi_set_config(WIFI_IF_AP, &ap);
+
+  // ---- STA: 저장된 자격증명이 있을 때만 설정. 없으면 그냥 붙는 시도를 안 함 ----
+  bool have_creds = strlen(storage.wifi.ssid) > 0 && strlen(storage.wifi.passwd) >= 8;
+
+  if (have_creds) {
+    wifi_config_t sta = { 0 };
+    snprintf((char *)sta.sta.ssid, sizeof(sta.sta.ssid), "%s", storage.wifi.ssid);
+    snprintf((char *)sta.sta.password, sizeof(sta.sta.password), "%s", storage.wifi.passwd);
+    sta.sta.scan_method        = WIFI_FAST_SCAN;
+    sta.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    esp_wifi_set_config(WIFI_IF_STA, &sta);
+  }
+
   if (esp_wifi_start() != ESP_OK) {
-    ERROR_SYSLOG(&init, WIFI, "STA start failure", "STA_START_FAIL");
+    ERROR_SYSLOG(&init, WIFI, "start failure", "WIFI_START_FAIL");
     return false;
   }
 
-  EventBits_t bits = xEventGroupWaitBits(wifi_evt, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, false, false, portMAX_DELAY);
+  // 포털 HTTP 서버 + 캡티브 DNS는 언제나 띄운다 (webserver.c)
+  ap_start();
 
-  if (!(bits & WIFI_CONNECTED_BIT)) {
-    ERROR_SYSLOG(&init, WIFI, "connection failed", "STA_CONN_FAIL");
-    return false;
-  }
-
-  // SNTP time sync service
-  esp_sntp_config_t sntp = ESP_NETIF_SNTP_DEFAULT_CONFIG("time.google.com");
-  sntp.sync_cb           = sntp_sync_callback;
-  esp_netif_sntp_init(&sntp);
-
-  if (IS_OK(&init, WIFI)) {
-    CLEAR_ALL(&logbuf.run, WIFI);
-    SYSLOG("WIFI_RDY");
-  } else {
-    COPY_STATE(&logbuf.run, &init, WIFI);
-  }
-
+  // SNTP는 STA가 실제로 붙었을 때(IP_EVENT_STA_GOT_IP)만 의미 있으므로 그대로 이벤트
+  // 핸들러 쪽에서 처리 (아래 wifi_event_handler 참고). app_main()을 더 이상 여기서
+  // 블록하지 않고 바로 리턴 — STA 연결 여부와 무관하게 MQTT 초기화로 넘어간다.
+  SYSLOG("WIFI_INIT_DONE");
   return true;
 }
