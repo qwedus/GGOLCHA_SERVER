@@ -172,43 +172,30 @@ static esp_err_t setconf(httpd_req_t *req) {
     return ESP_FAIL;
   }
 
+  // 재부팅 없이 즉시 재접속 시도 — NVS 커밋 성공 후, cJSON_Delete 전
+  cJSON *ssid_item = cJSON_GetObjectItem(json, "ssid");
+  cJSON *pw_item   = cJSON_GetObjectItem(json, "passwd");
+
+  snprintf(storage.wifi.ssid, sizeof(storage.wifi.ssid), "%s", ssid_item->valuestring);
+  snprintf(storage.wifi.passwd, sizeof(storage.wifi.passwd), "%s", pw_item->valuestring);
+
+  wifi_config_t sta_cfg = { 0 };
+  snprintf((char *)sta_cfg.sta.ssid, sizeof(sta_cfg.sta.ssid), "%s", storage.wifi.ssid);
+  snprintf((char *)sta_cfg.sta.password, sizeof(sta_cfg.sta.password), "%s", storage.wifi.passwd);
+  sta_cfg.sta.scan_method        = WIFI_FAST_SCAN;
+  sta_cfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+
+  esp_wifi_disconnect();
+  esp_wifi_set_config(WIFI_IF_STA, &sta_cfg);
+  esp_wifi_connect();
+
   cJSON_Delete(json);
   httpd_resp_set_type(req, "application/json");
   httpd_resp_sendstr(req, "{\"status\":\"OK\"}");
   return ESP_OK;
 }
 
-void webserver(void) {
-  esp_netif_create_default_wifi_ap();
-
-  wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-
-  if (esp_wifi_init(&cfg) != ESP_OK) {
-    ERROR_SYSLOG(&init, WIFI, "init failure", "WIFI_INIT_FAIL");
-    return;
-  }
-
-  wifi_config_t wifi = {
-    .ap = {
-      .password = "monolith",
-      .max_connection = 4,
-      .authmode = WIFI_AUTH_WPA2_PSK,
-    },
-  };
-
-  snprintf((char *)wifi.ap.ssid, sizeof(wifi.ap.ssid), "Monolith v2 %02X%02X%02X", storage.wifi.mac[3],
-    storage.wifi.mac[4], storage.wifi.mac[5]);
-
-  if (esp_wifi_set_mode(WIFI_MODE_AP) != ESP_OK || esp_wifi_set_config(WIFI_IF_AP, &wifi) != ESP_OK) {
-    ERROR_SYSLOG(&init, WIFI, "AP config failure", "AP_CFG_FAIL");
-    return;
-  }
-
-  if (esp_wifi_start() != ESP_OK) {
-    ERROR_SYSLOG(&init, WIFI, "AP start failure", "AP_START_FAIL");
-    return;
-  }
-
+void ap_start(void) {
   struct udp_pcb *dns = udp_new();
   if (dns) {
     udp_bind(dns, IP_ADDR_ANY, 53);
