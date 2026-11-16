@@ -1,17 +1,20 @@
 # 서버 운영
 
+서버가 돌고 있는 동안의 운영 방법이다. 서버를 처음 만들거나 다음 기수에게 넘길 때는 [HANDOVER.md](HANDOVER.md) 를 본다.
+
 ## 1. 계정·접속 정보
 
-> 빈칸은 담당자가 채워서 넘긴다. 비밀번호·키 파일은 이 문서에 직접 쓰지 말고 **보관 위치**만 적는다.
+> 현재 담당자가 채운다. 이 레포는 **공개 저장소**이므로 비밀번호·키는 쓰지 말고 **보관 위치**만 적는다.
 
 | 항목 | 값 |
 |---|---|
 | AWS 루트 계정 | [이메일] / 비밀번호·MFA 보관 위치: [ ] |
+| 서버 주소 | [ ].duckdns.org |
 | 리전 | 아시아 태평양(서울) `ap-northeast-2` |
 | 인스턴스 유형 | [ ] |
 | 키 페어 | [이름] / `.pem` 보관 위치: [ ] |
 | 탄력적 IP | [있음 / 없음] |
-| DuckDNS | 도메인 `ggolcha.duckdns.org` / 로그인 계정: [ ] |
+| DuckDNS | 로그인 계정: [ ] |
 | 서버의 `.env`, `mosquitto.passwd` | 서버 `~/GGOLCHA_SERVER/server/` 에만 있음 (git에 없음). 백업 위치: [ ] |
 | 웹 뷰어 키 / 관리자 키 | 보관 위치: [ ] |
 
@@ -34,7 +37,7 @@ EC2 → 인스턴스 → 서버 선택 → **인스턴스 상태 → 인스턴�
 3. IP가 바뀌었으면
    - duckdns.org 로그인 → `ggolcha` 항목의 IP를 새 주소로 변경
    - GitHub 레포 Settings → Secrets and variables → Actions → `EC2_HOST` 가 IP면 새 주소로 변경
-4. 2~3분 뒤 https://ggolcha.duckdns.org 접속 확인
+4. 2~3분 뒤 `https://서버주소` 접속 확인
 5. 사이트가 안 뜨면 서버에 접속해서 컨테이너를 올린다.
    ```bash
    cd ~/GGOLCHA_SERVER/server && docker compose up -d
@@ -53,7 +56,7 @@ EC2 → 인스턴스 → 서버 선택 → **인스턴스 상태 → 인스턴�
 **내 PC 터미널**: 키 페어의 `.pem` 파일이 있어야 한다.
 
 ```powershell
-ssh -i "키이름.pem" ubuntu@ggolcha.duckdns.org
+ssh -i "키이름.pem" ubuntu@서버주소
 ```
 
 Windows에서 `UNPROTECTED PRIVATE KEY FILE` 오류가 나면 키 파일 권한을 줄인다.
@@ -65,7 +68,11 @@ icacls "키이름.pem" /grant:r "$($env:USERNAME):(R)"
 
 `Permission denied (publickey)` 가 나면 키 파일이 이 서버 것이 아니다. 인스턴스 상세의 키 페어 이름과 파일 이름을 확인한다.
 
-## 4. 자동 배포
+## 4. 백업
+
+대회 후나 담당자가 바뀔 때 백업 파일을 만들어 팀 드라이브에 보관한다. 절차는 [HANDOVER.md](HANDOVER.md) 2-1~2-3과 같다.
+
+## 5. 자동 배포
 
 `main` 브랜치에서 `server/` 또는 `web/` 아래 파일이 바뀌면 GitHub Actions(`.github/workflows/deploy.yml`)가 서버에 접속해 아래를 실행한다.
 
@@ -79,13 +86,14 @@ icacls "키이름.pem" /grant:r "$($env:USERNAME):(R)"
 > cd ~/GGOLCHA_SERVER && git fetch origin main && git reset --hard origin/main
 > ```
 
-## 5. 문제 해결
+## 6. 문제 해결
 
 | 증상 | 확인할 것 |
 |---|---|
 | 사이트가 안 열림 | 인스턴스가 실행 중인지 → DuckDNS IP가 현재 공인 IP와 같은지 → 서버에서 `docker compose ps` |
 | 웹은 열리는데 "Authentication Failed" | Device Configuration의 Name(`honeycar`)과 Key가 맞는지 |
 | 웹에 Device가 Offline | 차량 전원, ESP32 WiFi 연결(핫스팟은 2.4GHz), ESP32의 `MQTT_HOST`·`MQTT_PASS` |
+| ESP32 WiFi를 바꿔야 함 | 휴대폰으로 `GGOLCHA-XXXXXX` WiFi에 접속 → 뜨는 창(또는 `http://192.168.4.1`)에서 새 SSID·비밀번호 입력. 운영 중이면 웹 Device Configuration의 "WiFi 변경" 사용 |
 | 데이터가 Data Viewer에 저장되지 않음 | 서버에서 `docker compose logs -f mqtt_logger` |
 | HTTPS 인증서 오류 | `docker compose logs traefik`. 80·443 포트가 열려 있고 도메인이 서버 IP를 가리켜야 발급된다. |
 
