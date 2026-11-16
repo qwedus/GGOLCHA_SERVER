@@ -1,6 +1,6 @@
 # 서버 운영
 
-서버가 돌고 있는 동안의 운영 방법이다. 서버를 처음 만들거나 다음 기수에게 넘길 때는 [HANDOVER.md](HANDOVER.md) 를 본다.
+서버가 돌고 있는 동안의 운영 방법이다. 서버를 새로 만들 때는 [SETUP.md](SETUP.md), 다음 기수에게 넘길 때는 [HANDOVER.md](HANDOVER.md) 를 본다.
 
 ## 1. 계정·접속 정보
 
@@ -47,7 +47,7 @@ EC2 → 인스턴스 → 서버 선택 → **인스턴스 상태 → 인스턴�
 
 - 웹 접속, 차량 텔레메트리 수신, 자동 배포가 모두 안 된다.
 - 차량 데이터는 Teensy SD 카드에만 기록된다.
-- 꺼져 있는 동안 main에 push했다면, 켠 뒤 서버에서 `cd ~/GGOLCHA_SERVER && git pull` 후 배포 명령([DEPLOY.md](DEPLOY.md) 5단계)을 다시 실행한다.
+- 꺼져 있는 동안 main에 push했다면, 켠 뒤 서버에서 `cd ~/GGOLCHA_SERVER && git pull` 후 배포 명령([SETUP.md](SETUP.md) 7장)을 다시 실행한다.
 
 ## 3. 서버 접속
 
@@ -70,7 +70,7 @@ icacls "키이름.pem" /grant:r "$($env:USERNAME):(R)"
 
 ## 4. 백업
 
-대회 후나 담당자가 바뀔 때 백업 파일을 만들어 팀 드라이브에 보관한다. 절차는 [HANDOVER.md](HANDOVER.md) 2-1~2-3과 같다.
+대회 후나 담당자가 바뀔 때 백업 파일을 만들어 팀 드라이브에 보관한다. 절차는 [HANDOVER.md](HANDOVER.md) 1장과 같다.
 
 ## 5. 자동 배포
 
