@@ -23,26 +23,12 @@ const model = computed(() => [
                 command: () => showAnnouncement(),
                 visible: !!announcement.message
             },
-            {
-                label: 'Documentation',
-              
-                icon: 'pi pi-fw pi-book',
-                url: '/docs',
-                target: '_blank',
-                visible: false
-            },
 	    {
    		label: 'GitHub',
    		icon: 'pi pi-fw pi-github',
     		url: 'https://github.com/qwedus/GGOLCHA_SERVER',
     		target: '_blank'
-	    },            
-	    {
-                label: 'DNF Forum',
-                icon: 'pi pi-fw pi-link',
-                url: 'https://dnf.luftaquila.io',
-                target: '_blank'
-            }
+	    }
         ]
     }
 ]);

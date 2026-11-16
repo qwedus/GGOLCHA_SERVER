@@ -10,8 +10,6 @@ import { views, units, can_decoder, colors } from '@/service/ui';
 import { map, line, path, speed, course, fix, dirty, hotlineMode, switchHotlineMode } from '@/service/telemetry';
 import { init_map, HOTLINE_MODE } from '@/service/map';
 
-import ToastEventBus from 'primevue/toasteventbus';
-
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 
