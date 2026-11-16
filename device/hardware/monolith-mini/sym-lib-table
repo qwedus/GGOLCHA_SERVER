@@ -1,4 +1,0 @@
-(sym_lib_table
-  (version 7)
-  (lib (name "MPU-6500")(type "KiCad")(uri "${KIPRJMOD}/../libraries/MPU-6500.kicad_sym")(options "")(descr ""))
-)

@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && (cd ../docs; ./build.sh && mkdir -p ../web/dist/docs && cp -r index.html ko.html images ../web/dist/docs)",
+    "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint --fix . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
   },

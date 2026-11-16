@@ -11,13 +11,7 @@ import ToastEventBus from 'primevue/toasteventbus';
 
 const confirm = useConfirm();
 
-// 지금 안 쓰는 admin 섹션들 — 나중에 필요해지면 true로만 바꾸면 됨
-const SHOW_DEVICE_SECTION = false;
-const SHOW_CAN_SECTION = false;
-const SHOW_GPS_SECTION = false;
-
-// [신규] B안 — 기존 net/ssid, net/passwd(set/cmd/cfg 프로토콜)와는 별개로,
-// ESP가 실제 구현한 cfg/wifi 토픽(테스트 접속 후 성공해야만 저장되는 안전한 방식) 전용 입력값.
+// [신규] B안 — ESP가 실제 구현한 cfg/wifi 토픽(테스트 접속 후 성공해야만 저장되는 안전한 방식) 전용 입력값.
 // 잘못 입력해도 ESP가 먼저 접속 테스트를 해보고 실패하면 기존 WiFi를 그대로 유지함.
 const safeWifi = ref({ ssid: '', pass: '', loading: false });
 
@@ -94,44 +88,9 @@ function set_cfg(event) {
     const target = event.currentTarget.id;
     const [section, field] = target.split('/');
 
-    let buf = null;
-    let view = null;
-    let payload = null;
-
-    switch (target) {
-        case 'net/ssid':
-        case 'net/passwd':
-        case 'dev/tz':
-            payload = config[section][field].value.trim();
-            break;
-
-        case 'dev/intv':
-            buf = new ArrayBuffer(4);
-            view = new DataView(buf);
-            view.setUint32(0, config[section][field].value, true);
-            payload = new Uint8Array(buf);
-            break;
-
-        case 'can/filter':
-        case 'can/mask':
-            buf = new ArrayBuffer(4);
-            view = new DataView(buf);
-            view.setUint32(0, parseInt(config[section][field].value.trim(), 16), true);
-            payload = new Uint8Array(buf);
-            break;
-
-        case 'anl/en':
-        case 'dgt/en':
-        case 'can/en':
-        case 'gps/en':
-            config[section][field].value = !config[section][field].value; // toggle value
-            payload = new Uint8Array([config[section][field].value ? 1 : 0]);
-            break;
-
-        default:
-            payload = new Uint8Array([config[section][field].value]);
-            break;
-    }
+    // anl/en, dgt/en — 토글 값 전송
+    config[section][field].value = !config[section][field].value;
+    const payload = new Uint8Array([config[section][field].value ? 1 : 0]);
 
     config[section][field].loading = true;
     config.current_loading = target;
@@ -245,34 +204,6 @@ function reset_confirm() {
         }
     });
 }
-
-const interval = [
-    { name: '100 ms', value: 100 },
-    { name: '200 ms', value: 200 },
-    { name: '500 ms', value: 500 },
-    { name: '1 s', value: 1000 },
-    { name: '2 s', value: 2000 },
-    { name: '5 s', value: 5000 }
-];
-
-const canbps = [
-    { name: '1 kbit/s', value: 0 },
-    { name: '5 kbit/s', value: 1 },
-    { name: '10 kbit/s', value: 2 },
-    { name: '12.5 kbit/s', value: 3 },
-    { name: '16 kbit/s', value: 4 },
-    { name: '20 kbit/s', value: 5 },
-    { name: '25 kbit/s', value: 6 },
-    { name: '50 kbit/s', value: 7 },
-    { name: '100 kbit/s', value: 8 },
-    { name: '125 kbit/s', value: 9 },
-    { name: '250 kbit/s', value: 10 },
-    { name: '500 kbit/s', value: 11 },
-    { name: '800 kbit/s', value: 12 },
-    { name: '1 Mbit/s', value: 13 }
-];
-
-const gpsdev = [{ name: 'UBLOX', value: 0 }];
 
 function list_files() {
     if (connection.device.value !== 'Online') {
@@ -412,49 +343,9 @@ function download_file(name, size, index) {
                     <Message v-else size="small" severity="secondary" variant="simple">Viewer mode — read-only. Enter the admin key to unlock configuration for 10 minutes.</Message>
                 </div>
 
-                <div v-if="is_admin && SHOW_DEVICE_SECTION" class="card flex flex-col gap-6">
-                    <div class="font-semibold text-xl">Device</div>
-                    <div class="grid grid-cols-12 gap-2">
-                        <label for="net-ssid" class="flex items-center col-span-3">SSID</label>
-                        <div class="col-span-9">
-                            <InputGroup>
-                                <InputText id="net-ssid" v-model="config.net.ssid.value" placeholder="Wi-Fi SSID" />
-                                <Button id="net/ssid" class="mr-2 mb-2" icon="pi pi-upload" :disabled="config.disabled" :loading="config.net.ssid.loading" @click="set_cfg($event)" />
-                            </InputGroup>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-12 gap-2">
-                        <label for="net-passwd" class="flex items-center col-span-3">Password</label>
-                        <div class="col-span-9">
-                            <InputGroup>
-                                <InputText id="net-passwd" v-model="config.net.passwd.value" placeholder="Wi-Fi Password" />
-                                <Button id="net/passwd" class="mr-2 mb-2" icon="pi pi-upload" :disabled="config.disabled" :loading="config.net.passwd.loading" @click="set_cfg($event)" />
-                            </InputGroup>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-12 gap-2">
-                        <label for="dev-tz" class="flex items-center col-span-3">Timezone</label>
-                        <div class="col-span-9">
-                            <InputGroup>
-                                <InputText id="dev-tz" v-model="config.dev.tz.value" placeholder="POSIX timezone string" />
-                                <Button id="dev/tz" class="mr-2 mb-2" icon="pi pi-upload" :disabled="config.disabled" :loading="config.dev.tz.loading" @click="set_cfg($event)" />
-                            </InputGroup>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-12 gap-2">
-                        <label for="dev-intv" class="flex items-center col-span-3">T. Interval</label>
-                        <div class="col-span-9">
-                            <InputGroup>
-                                <Select id="dev-intv" v-model="config.dev.intv.value" :options="interval" optionLabel="name" optionValue="value" placeholder="Telemetry Interval" />
-                                <Button id="dev/intv" class="mr-2 mb-2" icon="pi pi-upload" :disabled="config.disabled" :loading="config.dev.intv.loading" @click="set_cfg($event)" />
-                            </InputGroup>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- [신규] B안 — 안전한 WiFi 변경 (기존 SSID/Password 필드와는 별개 경로).
+                <!-- [신규] B안 — 안전한 WiFi 변경.
                      ESP가 cfg/wifi 토픽으로 받아 먼저 테스트 접속 후 성공해야만 반영함.
-                     실패 시 기존 WiFi를 자동으로 유지하므로 net/ssid, net/passwd + Restart 조합보다 안전함. -->
+                     실패 시 기존 WiFi를 자동으로 유지함. -->
                 <div v-if="is_admin" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">WiFi 변경 (안전모드)</div>
                     <span class="text-sm text-surface-500">
@@ -492,62 +383,6 @@ function download_file(name, size, index) {
             </div>
 
             <div class="md:w-1/2">
-                <div v-if="is_admin && SHOW_CAN_SECTION" class="card flex flex-col gap-6">
-                    <div class="font-semibold text-xl">CAN</div>
-                    <div class="grid grid-cols-12 gap-2">
-                        <label for="can-en" class="flex items-center col-span-3">Enabled</label>
-                        <div class="col-span-9">
-                            <ToggleSwitch id="can/en" v-model="config.can.en.value" :disabled="config.disabled" @click="set_cfg($event)" />
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-12 gap-2">
-                        <label for="can-bps" class="flex items-center col-span-3">Bit rate</label>
-                        <div class="col-span-9">
-                            <InputGroup>
-                                <Select id="can-bps" v-model="config.can.bps.value" :options="canbps" optionLabel="name" optionValue="value" placeholder="CAN bps" />
-                                <Button id="can/bps" class="mr-2 mb-2" icon="pi pi-upload" :disabled="config.disabled" :loading="config.can.bps.loading" @click="set_cfg($event)" />
-                            </InputGroup>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-12 gap-2">
-                        <label for="can-filter" class="flex items-center col-span-3">Filter</label>
-                        <div class="col-span-9">
-                            <InputGroup>
-                                <InputText id="can-filter" v-model="config.can.filter.value" placeholder="CAN filter ID" />
-                                <Button id="can/filter" class="mr-2 mb-2" icon="pi pi-upload" :disabled="config.disabled" :loading="config.can.filter.loading" @click="set_cfg($event)" />
-                            </InputGroup>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-12 gap-2">
-                        <label for="can-mask" class="flex items-center col-span-3">Mask</label>
-                        <div class="col-span-9">
-                            <InputGroup>
-                                <InputText id="can-mask" v-model="config.can.mask.value" placeholder="CAN filter mask" />
-                                <Button id="can/mask" class="mr-2 mb-2" icon="pi pi-upload" :disabled="config.disabled" :loading="config.can.mask.loading" @click="set_cfg($event)" />
-                            </InputGroup>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="is_admin && SHOW_GPS_SECTION" class="card flex flex-col gap-6">
-                    <div class="font-semibold text-xl">GPS</div>
-                    <div class="grid grid-cols-12 gap-2">
-                        <label for="gps-en" class="flex items-center col-span-3">Enabled</label>
-                        <div class="col-span-9">
-                            <ToggleSwitch id="gps/en" v-model="config.gps.en.value" :disabled="config.disabled" @click="set_cfg($event)" />
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-12 gap-2">
-                        <label for="gps-dev" class="flex items-center col-span-3">Device</label>
-                        <div class="col-span-9">
-                            <InputGroup>
-                                <Select id="gps-dev" v-model="config.gps.dev.value" :options="gpsdev" optionLabel="name" optionValue="value" placeholder="GPS device" />
-                                <Button id="gps/dev" class="mr-2 mb-2" icon="pi pi-upload" :disabled="config.disabled" :loading="config.gps.dev.loading" @click="set_cfg($event)" />
-                            </InputGroup>
-                        </div>
-                    </div>
-                </div>
-
                 <div v-if="is_admin" class="card flex flex-col gap-6">
                     <div class="font-semibold text-xl">Danger Zone</div>
                     <span><span class="pi pi-info-circle mr-2"></span> Restart the device to apply changes.</span>

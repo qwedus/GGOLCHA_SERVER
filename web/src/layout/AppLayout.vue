@@ -1,7 +1,6 @@
 <script setup>
 import { useLayout } from '@/layout/composables/layout';
 import { computed, onMounted, ref, watch } from 'vue';
-import AppFooter from './AppFooter.vue';
 import AppSidebar from './AppSidebar.vue';
 import AppTopbar from './AppTopbar.vue';
 import { announcement, fetchAnnouncement, dismissAnnouncement } from '@/service/announcement';
@@ -72,7 +71,6 @@ function isOutsideClicked(event) {
                     </keep-alive>
                 </router-view>
             </div>
-            <app-footer></app-footer>
         </div>
         <div class="layout-mask animate-fadein"></div>
     </div>
