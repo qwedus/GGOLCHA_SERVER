@@ -22,12 +22,6 @@ const LOG_TYPE = ['INVALID', 'BOOT', 'CAN', 'GPS', 'ANALOG', 'DIGITAL', 'GYROSCO
 //   length    : type: 'string'일 때 문자열 최대 길이
 // ---------------------------------------------------------------------------
 
-function to_dms(raw) {
-    // raw: 1e7 스케일된 정수 좌표 (예: 37.5665 -> 375665000)
-    const v = raw / 10000000;
-    return Math.floor(v) + ((v % 1) * 100) / 60;
-}
-
 const FIELD_SCHEMA = {
     ANALOG: [
         { name: 'ain1', offset: 8, bits: 16, signed: true },
