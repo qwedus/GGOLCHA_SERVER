@@ -61,7 +61,7 @@ tar -tzf ggolcha-backup.tgz | Select-String "\.env|passwd"   # 두 파일이 보
 
 `ggolcha-backup.tgz` 를 **팀 공용 비공개 드라이브**에 올리고, 경로를 [README.md](README.md) 1장 표에 적는다. GitHub·카페에는 올리지 않는다.
 
-레포는 넘기지 않고 그대로 둔다. 받는 사람이 **포크**해서 자기 레포로 쓴다 ([SETUP.md](SETUP.md) 1장). 원본 레포는 지우지 않는다.
+레포는 넘기지 않고 그대로 둔다. 받는 사람이 **포크**해서 자기 레포로 쓴다 ([SETUP.md](SETUP.md) 0장). 원본 레포는 지우지 않는다.
 
 ## 2. 넘길 자료 정리
 
@@ -88,7 +88,7 @@ tar -tzf ggolcha-backup.tgz | Select-String "\.env|passwd"   # 두 파일이 보
 
 보안 그룹, 키 페어는 요금이 없다.
 
-그다음 GitHub 레포 → **Actions** → **Deploy to Seoul Server** → `...` → **Disable workflow**. 서버가 없는데 켜 두면 배포가 계속 실패한다. 받는 사람은 자기 포크에서 따로 켠다.
+그다음 GitHub 레포 → **Actions** → **Deploy to Seoul Server** → `...` → **Disable workflow**. 서버가 없는데 켜 두면 배포가 계속 실패한다. 받는 사람은 필요하면 자기 포크에서 따로 켠다 ([SETUP.md](SETUP.md) 부록 B).
 
 ---
 

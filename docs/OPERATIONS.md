@@ -1,6 +1,6 @@
 # 서버 운영
 
-서버가 돌고 있는 동안의 운영 방법이다. 서버를 새로 만들 때는 [SETUP.md](SETUP.md), 다음 기수에게 넘길 때는 [HANDOVER.md](HANDOVER.md) 를 본다.
+AWS 서버(SETUP 경로 1)가 돌고 있는 동안의 운영 방법이다. 서버를 새로 만들 때는 [SETUP.md](SETUP.md), 다음 기수에게 넘길 때는 [HANDOVER.md](HANDOVER.md) 를 본다.
 
 ## 1. 계정·접속 정보
 
@@ -47,7 +47,7 @@ EC2 → 인스턴스 → 서버 선택 → **인스턴스 상태 → 인스턴�
 
 - 웹 접속, 차량 텔레메트리 수신, 자동 배포가 모두 안 된다.
 - 차량 데이터는 Teensy SD 카드에만 기록된다.
-- 꺼져 있는 동안 main에 push했다면, 켠 뒤 서버에서 `cd ~/GGOLCHA_SERVER && git pull` 후 배포 명령([SETUP.md](SETUP.md) 7장)을 다시 실행한다.
+- 꺼져 있는 동안 main에 push했다면, 켠 뒤 서버에서 `cd ~/GGOLCHA_SERVER && git pull` 후 [SETUP.md](SETUP.md) 1-7의 "코드를 고친 뒤 서버에 반영하기"를 실행한다.
 
 ## 3. 서버 접속
 
@@ -72,9 +72,9 @@ icacls "키이름.pem" /grant:r "$($env:USERNAME):(R)"
 
 대회 후나 담당자가 바뀔 때 백업 파일을 만들어 팀 드라이브에 보관한다. 절차는 [HANDOVER.md](HANDOVER.md) 1장과 같다.
 
-## 5. 자동 배포
+## 5. 자동 배포 (설정한 경우만)
 
-`main` 브랜치에서 `server/` 또는 `web/` 아래 파일이 바뀌면 GitHub Actions(`.github/workflows/deploy.yml`)가 서버에 접속해 아래를 실행한다.
+설정 방법은 [SETUP.md](SETUP.md) 부록 B. 설정하면 `main` 브랜치에서 `server/` 또는 `web/` 아래 파일이 바뀌면 GitHub Actions(`.github/workflows/deploy.yml`)가 서버에 접속해 아래를 실행한다.
 
 1. `git pull` 2. 웹 빌드 3. 컨테이너 재빌드·재시작 4. mosquitto 설정이 바뀌었으면 mosquitto 재시작
 
