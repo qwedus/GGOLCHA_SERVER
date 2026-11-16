@@ -26,6 +26,10 @@ DIY wireless data logging platform for Team GGOOLCHA
 * 💡 Customizable web-based data analysis tool
 * 🍺 Fully Open-source & Open-hardware under the Beerware license
 
+## 문서
+
+운영·배포·코드 설명은 [docs/](docs/README.md)에 있다.
+
 ## Origin
 
 Forked from [luftaquila/monolith](https://github.com/luftaquila/monolith) (Monolith v2). See [LICENSE](LICENSE).
