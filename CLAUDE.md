@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Monolith v2 is a DIY wireless data logging platform for Student Formula / Baja racing. It consists of three independent subsystems: ESP32-S3 firmware (C), a Vue 3 web control hub, and KiCAD hardware designs. Two hardware variants exist: Original (full sensor suite) and Mini (compact, CAN + GPS + IMU + internal temp/voltage, no digital I/O), controlled by the `CONFIG_MONOLITH_MINI` compile flag.
+Monolith v2 is a DIY wireless data logging platform for Student Formula / Baja racing. It consists of ESP32-S3 firmware (C), a Vue 3 web control hub, and a Docker Compose server stack (MQTT broker, MQTT logger, InfluxDB). Two hardware variants exist: Original (full sensor suite) and Mini (compact, CAN + GPS + IMU + internal temp/voltage, no digital I/O), controlled by the `CONFIG_MONOLITH_MINI` compile flag.
 
 ## Build & Development Commands
 
 ### Web Frontend (`web/`)
 ```bash
 npm run dev          # dev server (HTTPS, port 5173)
-npm run build        # production build (also builds docs into dist/docs)
+npm run build        # production build
 npm run lint         # ESLint with auto-fix
 ```
 
@@ -37,8 +37,7 @@ Docker Compose stack. Requires `.env` file (see `.env.example`).
 ## CI/CD
 
 - **firmware.yml** — Builds both Original and Mini on pushes to `device/firmware/**`
-- **release.yml** — Triggered on `v*` tags; packages firmware binaries + PCB gerbers into GitHub releases
-- **pcb.yml** — Exports KiCAD gerbers and BOM/CPL for PCB assembly
+- **deploy.yml** — On pushes to `server/**` or `web/**`, SSHes into the EC2 host, rebuilds the web app and restarts the Docker Compose stack
 
 ## Commit Messages
 
